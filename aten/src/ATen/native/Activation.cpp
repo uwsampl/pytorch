@@ -720,4 +720,10 @@ Tensor& log_sigmoid_backward_out_cpu(
 DEFINE_DISPATCH(GeluKernel);
 DEFINE_DISPATCH(GeluBackwardKernel);
 
+Tensor slice_backward(const Tensor& grad, c10::ArrayRef<long> input_sizes, long dim, long start, long end, long step) {
+  auto grad_input = at::zeros(input_sizes, grad.options());
+  grad_input.slice(dim, start, end, step).copy_(grad);
+  return grad_input;
+}
+
 }}  // namespace at::native
