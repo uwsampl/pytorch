@@ -305,6 +305,8 @@ def generate_storage_type_and_tensor(backend, density, declarations):
     if env['DeviceType'] == 'CPU':
         top_env['cpu_type_headers'].append(
             '#include "ATen/{}.h"'.format(env['Type']))
+    elif env['DeviceType'] == 'CheckPoint':
+        pass
     else:
         assert env['DeviceType'] == 'CUDA'
         top_env['cuda_type_headers'].append(
@@ -332,7 +334,7 @@ def declare_outputs():
     for f in core_files:
         core_file_manager.will_write(f)
     files = ['Declarations.yaml', 'TypeDefault.cpp', 'TypeDefault.h',
-             'Functions.h', 'NativeFunctions.h']
+             'Functions.h', 'NativeFunctions.h', 'CheckPointType.cpp']
     for f in files:
         file_manager.will_write(f)
     for backend, density in iterate_types():
@@ -349,7 +351,8 @@ def declare_outputs():
         if backend == 'CPU' or backend == 'CUDA':
             fm.will_write("LegacyTHFunctions{}.h".format(backend))
             fm.will_write("LegacyTHFunctions{}.cpp".format(backend))
-
+    file_manager.will_write("CheckPointType.h")
+    file_manager.will_write("CheckPointType.cpp")
 
 def filter_by_extension(files, *extensions):
     filtered_files = []
@@ -382,6 +385,7 @@ def generate_outputs():
 
     for backend, density in iterate_types():
         generate_storage_type_and_tensor(backend, density, declarations)
+    generate_storage_type_and_tensor('CheckPoint', 'Dense', declarations)
 
     core_files = {
         'TensorBody.h': TENSOR_H,
@@ -398,7 +402,6 @@ def generate_outputs():
     file_manager.write('Functions.h', FUNCTIONS_H, top_env)
 
     file_manager.write('NativeFunctions.h', NATIVE_FUNCTIONS_H, top_env)
-
     file_manager.check_all_files_written()
     cuda_file_manager.check_all_files_written()
 
