@@ -351,6 +351,8 @@ def generate_storage_type_and_tensor(backend, density, declarations, per_op_regi
     if env['DeviceType'] == 'CPU':
         top_env['cpu_type_headers'].append(
             '#include "ATen/{}.h"'.format(env['Type']))
+    elif env['DeviceType'] == 'CheckPoint':
+        pass
     else:
         assert env['DeviceType'] == 'CUDA'
         top_env['cuda_type_headers'].append(
@@ -382,7 +384,7 @@ def declare_outputs():
     for f in core_files:
         core_file_manager.will_write(f)
     files = ['Declarations.yaml', 'TypeDefault.cpp', 'TypeDefault.h',
-             'Functions.h', 'NativeFunctions.h']
+             'Functions.h', 'NativeFunctions.h', 'CheckPointType.cpp']
     for f in files:
         file_manager.will_write(f)
     for backend, density in iterate_types():
@@ -409,6 +411,8 @@ def declare_outputs():
             fname = gen_per_op_registration_filename(whitelisted_op)
             file_manager.will_write(fname)
 
+    file_manager.will_write("CheckPointType.h")
+    file_manager.will_write("CheckPointType.cpp")
 
 def filter_by_extension(files, *extensions):
     filtered_files = []
@@ -473,6 +477,8 @@ def generate_outputs():
     for backend, density in iterate_types():
         generate_storage_type_and_tensor(
             backend, density, declarations, per_op_registrations)
+
+    generate_storage_type_and_tensor('CheckPoint', 'Dense', declarations, per_op_registrations)
 
     core_files = {
         'TensorBody.h': TENSOR_H,
