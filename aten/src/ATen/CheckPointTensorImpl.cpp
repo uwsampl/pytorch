@@ -188,17 +188,17 @@ void CheckPointTensorImpl::release_resources() {
   ref.reset();
 }
 
-TensorTypeSet convert_type_set(const TensorTypeSet& t) {
-  return t.add(TensorTypeId::CheckPointTensorId).remove(TensorTypeId::VariableTensorId);
+DispatchKeySet convert_key_set(const DispatchKeySet& t) {
+  return t.add(DispatchKey::CheckPointTensorId).remove(DispatchKey::VariableTensorId);
 }
 
 CheckPointTensorImpl::CheckPointTensorImpl(const Tensor& t) :
-  TensorImpl(convert_type_set(t.type_set()), t.dtype(), t.optional_device()),
+  TensorImpl(convert_key_set(t.key_set()), t.dtype(), t.optional_device()),
   ref(intrusive_ptr<CheckPointTensorImplCell>::make(intrusive_ptr<CheckPointTensorCell>::make(t))) {
 }
 
 CheckPointTensorImpl::CheckPointTensorImpl(const intrusive_ptr<CheckPointTensorCell>& cell) :
-  TensorImpl(cell->type_set, cell->dtype, cell->device),
+  TensorImpl(cell->key_set, cell->dtype, cell->device),
   ref(intrusive_ptr<CheckPointTensorImplCell>::make(cell)) {
   // This code must be put here instead of at CheckPointTensorCell
   // because in the constructor use_count is 0.
@@ -237,7 +237,7 @@ void CheckPointTensorCell::update_metadata() {
   } else {
     numel = 0;
   }
-  type_set = convert_type_set(t->type_set());
+  key_set = convert_key_set(t->key_set());
   dtype = t->dtype();
   device = t->optional_device();
 }
@@ -340,7 +340,7 @@ intrusive_ptr<TensorImpl> CheckPointTensorImpl::shallow_copy_and_detach(const Va
 }
 
 CheckPointTensorImpl::CheckPointTensorImpl(const intrusive_ptr<CheckPointTensorImplCell>& ref) :
-  TensorImpl(ref->value->type_set, ref->value->dtype, ref->value->device),
+  TensorImpl(ref->value->key_set, ref->value->dtype, ref->value->device),
   ref(ref) {
 }
 
