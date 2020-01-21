@@ -202,8 +202,19 @@ std::tuple<Tensor, Tensor> checkpoint_nll_loss_forward(const Tensor& a, const Te
 }
 
 Tensor& checkpoint_add_(Tensor& a, const Tensor& b, Scalar c) {
-  AT_ERROR("add_");
   auto new_a = checkpoint_add(a, b, c);
+  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
+  return a;
+}
+
+Tensor& checkpoint_mul_(Tensor& a, const Tensor& b) {
+  auto new_a = checkpoint_mul(a, b);
+  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
+  return a;
+}
+
+Tensor& checkpoint_relu_(Tensor& a) {
+  auto new_a = checkpoint_relu(a);
   cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
   return a;
 }
@@ -304,8 +315,10 @@ Tensor checkpoint_sub(Tensor const&, Tensor const&, c10::Scalar) {
   AT_ERROR("sub");
 }
 
-Tensor& checkpoint_zero_(Tensor&) {
-  AT_ERROR("zero_");
+Tensor& checkpoint_zero_(Tensor& a) {
+  auto new_a = checkpoint_like_zeros(a);
+  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
+  return a;
 }
 
 Tensor& checkpoint_binary_cross_entropy_backward_out(Tensor&, Tensor const&, Tensor const&, Tensor const&, Tensor const&, long) {
