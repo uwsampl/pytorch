@@ -8,8 +8,8 @@
 #include <c10/core/MemoryFormat.h>
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
-#include <c10/core/TensorTypeSet.h>
-#include <c10/core/impl/LocalTensorTypeSet.h>
+#include <c10/core/DispatchKeySet.h>
+#include <c10/core/impl/LocalDispatchKeySet.h>
 #include <c10/core/CopyBytes.h>
 
 #include <c10/util/Exception.h>
@@ -192,7 +192,7 @@ struct CAFFE2_API CheckPointTensorCell final : public intrusive_ptr_target {
   explicit CheckPointTensorCell(const intrusive_ptr<Rematerializer>& remat, const Unsafe&);
   // A Tensor might be an UndefinedTensorImpl!
   bool can_evict;
-  TensorTypeSet type_set;
+  DispatchKeySet key_set;
   caffe2::TypeMeta dtype;
   optional<Device> device;
   bool is_undefined = true;
