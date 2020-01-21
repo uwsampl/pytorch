@@ -899,7 +899,7 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
    * compatible with SparseCUDATensorId.
    */
   inline bool has_compatible_shallow_copy_type(DispatchKeySet from) {
-    if (type_set_.has(DispatchKey::CheckPointTensorId) || from.has(DispatchKey::CheckPointTensorId)) {
+    if (key_set_.has(DispatchKey::CheckPointTensorId) || from.has(DispatchKey::CheckPointTensorId)) {
       return false;
     }
     auto is_dense = [](DispatchKeySet ts) {
