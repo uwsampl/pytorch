@@ -255,6 +255,7 @@ CheckPointTensorCell::CheckPointTensorCell(const UndefinedTensorImpl&) :
 
 // TODO: implement.
 bool CheckPointPool::should_evict() {
+  return false;
   return tensors.size() > 10;
 }
 
