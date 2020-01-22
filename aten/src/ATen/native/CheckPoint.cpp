@@ -295,6 +295,15 @@ Tensor checkpoint_min(const Tensor& a, const Tensor& b) {
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
+Tensor checkpoint_index_select(const Tensor& self, long dim, const Tensor& index) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    return {at::index_select(vec[0], dim, vec[1])};
+  };
+  strongs s = {from_tensor(self), from_tensor(index)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
 std::tuple<Tensor, Tensor> checkpoint_prelu_backward(const Tensor& a, const Tensor& b, const Tensor& c) {
   AT_ERROR("prelu");
 }
@@ -671,4 +680,25 @@ Tensor checkpoint_ne(const Tensor& a, const Tensor& b) {
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckPointTensorImpl::make(rt, s)[0];
 }
+
+Tensor checkpoint_embedding(const Tensor & weight, const Tensor & indices,
+                            long padding_idx, bool scale_grad_by_freq, bool sparse) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    return {at::embedding(vec[0], vec[1], padding_idx, scale_grad_by_freq, sparse)};
+  };
+  strongs s = {from_tensor(weight), from_tensor(indices)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
+Tensor checkpoint_embedding_backward(const Tensor & grad, const Tensor & indices, long num_weights,
+                                     long padding_idx, bool scale_grad_by_freq, bool sparse) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    return {at::embedding_backward(vec[0], vec[1], num_weights, padding_idx, scale_grad_by_freq, sparse)};
+  };
+  strongs s = {from_tensor(grad), from_tensor(indices)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
 }}
