@@ -158,6 +158,7 @@
   variants: function
   dispatch:
      CUDA: fused_dropout_cuda
+     CheckPoint: checkpoint__fused_dropout
   supports_named_tensor: True
 
 - func: _masked_scale(Tensor self, Tensor mask, float scale) -> Tensor

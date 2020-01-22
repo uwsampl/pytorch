@@ -189,7 +189,7 @@ struct CAFFE2_API CheckPointTensorCell final : public intrusive_ptr_target {
    * Thus, it is unable to register itself at tensors.
    * It cannot be private because make_intrusive require public constructor.
    */
-  explicit CheckPointTensorCell(const intrusive_ptr<Rematerializer>& remat, const Unsafe&);
+  explicit CheckPointTensorCell(const intrusive_ptr<Rematerializer>& remat, bool is_evictable, const Unsafe&);
   // A Tensor might be an UndefinedTensorImpl!
   bool can_evict;
   DispatchKeySet key_set;
@@ -254,7 +254,8 @@ struct CAFFE2_API CheckPointTensorImpl final : public TensorImpl {
   explicit CheckPointTensorImpl(const intrusive_ptr<CheckPointTensorImplCell>& ref);
   explicit CheckPointTensorImpl(const Tensor& t);
   static Tensors make(const rematerialize_function_t& remat,
-                      const strongs& input_values);
+                      const strongs& input_values,
+                      bool is_evictable=true);
   explicit CheckPointTensorImpl(const intrusive_ptr<CheckPointTensorCell>& cell);
   explicit CheckPointTensorImpl(const UndefinedTensorImpl&);
   IntArrayRef strides() const override;
