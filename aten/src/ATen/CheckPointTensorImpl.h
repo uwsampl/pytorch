@@ -95,7 +95,7 @@ struct CAFFE2_API CheckPointInfo {
   duration_t compute_cost;
   time_t last_used_time;
   // @ZACH: Floating Point instability?
-  double score(time_t current_time) {
+  double score(time_t current_time) const {
     TORCH_CHECK(cpis == CheckPointInfoState::Evicted);
     TORCH_CHECK(memory > 0);
     auto staleness = (current_time - last_used_time).count();
@@ -142,6 +142,7 @@ static RegisterEvict register_evict;
 // after every forward/backward pass to improve performance.
 struct CAFFE2_API CheckPointPool {
   static CheckPointPool& singleton();
+  long epoch = 0;
   // Clear all bookkeeping.
   void clear();
   weaks tensors;
@@ -153,7 +154,7 @@ struct CAFFE2_API CheckPointPool {
   bool has_memory_budget = false;
   long memory_budget;
   bool has_batched_eviction_factor = false;
-  long batched_eviction_factor;
+  double batched_eviction_factor;
   bool has_ignore_small_tensor = false;
   long ignore_small_tensor;
 };
@@ -188,6 +189,7 @@ struct Unsafe {};
 // 0: It hold the value
 // 1: It hold a function that can compute those value.
 struct CAFFE2_API CheckPointTensorCell final : public intrusive_ptr_target {
+  long epoch = CheckPointPool::singleton().epoch;
   c10::optional<std::vector<EquivalentClassNode<CheckPointInfo>*>> neighbors();
   void fill(const Tensor& t, const weak_intrusive_ptr<CheckPointTensorCell>& self, time_t before_call, time_t after_call);
   explicit CheckPointTensorCell(const Tensor& t);

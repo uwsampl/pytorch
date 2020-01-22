@@ -22,7 +22,8 @@ CheckPointPool& CheckPointPool::singleton() {
 
 void CheckPointPool::clear() {
   tensors.clear();
-  //ec.clear();
+  ec.clear();
+  ++epoch;
 }
 
 CheckPointInfo merge(CheckPointInfo l, CheckPointInfo r) {
@@ -74,47 +75,62 @@ void CheckPointPool::evict() {
     tensors[i] = tensors[tensors.size() - 1];
     tensors.resize(tensors.size() - 1);
   };
-  for (size_t i = 0; i < tensors.size();) {
-    {
-      auto cannot_evict = [&]() {
-       shrinked = true;
-       remove_from_tensors(i);
-      };
-      auto ti_strong = tensors[i].lock();
-      if (!ti_strong.defined()) {
-        cannot_evict();
-        goto end_of_loop;
-      }
-      CheckPointTensorCell& cptc = *ti_strong;
-      // calculate the cost of evicting.
-      auto neighbors = cptc.neighbors();
-      if (!neighbors.has_value()) {
-        cannot_evict();
-        goto end_of_loop;
-      }
-      CheckPointInfo cpi = cptc.evict_cpi();
-      for (const auto& ecn : neighbors.value()) {
-        if (ecn != nullptr) {
-          cpi = merge(cpi, ecn->get_t());
+  auto loop = [&](const std::function<void(size_t, double)>& f) {
+    for (size_t i = 0; i < tensors.size();) {
+      {
+        auto cannot_evict = [&]() {
+                              shrinked = true;
+                              remove_from_tensors(i);
+                            };
+        auto ti_strong = tensors[i].lock();
+        if (!ti_strong.defined()) {
+          cannot_evict();
+          goto end_of_loop;
         }
+        CheckPointTensorCell& cptc = *ti_strong;
+        // calculate the cost of evicting.
+        auto neighbors = cptc.neighbors();
+        if (!neighbors.has_value()) {
+          cannot_evict();
+          goto end_of_loop;
+        }
+        CheckPointInfo cpi = cptc.evict_cpi();
+        for (const auto& ecn : neighbors.value()) {
+          if (ecn != nullptr) {
+            cpi = merge(cpi, ecn->get_t());
+          }
+        }
+        double cptc_evict_score = cpi.score(current_time);
+        f(i, cptc_evict_score);
+        ++i;
       }
-      double cptc_evict_score = cpi.score(current_time);
-      if (cptc_evict_score < evict_score) {
-        evict_idx = i;
-        evict_score = cptc_evict_score;
-      }
-      ++i;
+      // evict the node with the minimum score.
+    end_of_loop:;
     }
-  // evict the node with the minimum score.
-  end_of_loop:;
-  }
+  };
+  loop([&](size_t i, double cptc_evict_score) {
+    if (cptc_evict_score < evict_score) {
+      evict_idx = i;
+      evict_score = cptc_evict_score;
+    }
+  });
   if (evict_idx < 0) {
     CHECK(shrinked);
   } else {
-    auto ti_strong = tensors[evict_idx].lock();
-    TORCH_CHECK(ti_strong.defined());
-    ti_strong->evict();
-    remove_from_tensors(evict_idx);
+    auto evict_from_idx = [&](size_t idx) {
+      auto ti_strong = tensors[idx].lock();
+      TORCH_CHECK(ti_strong.defined());
+      ti_strong->evict();
+      remove_from_tensors(evict_idx);
+    };
+    evict_from_idx(evict_idx);
+    if (has_batched_eviction_factor) {
+      loop([&](size_t i, double cptc_evict_score) {
+        if (cptc_evict_score < evict_score * batched_eviction_factor) {
+          evict_from_idx(i);
+        }
+      });
+    }
   }
 }
 
@@ -146,7 +162,7 @@ void CheckPointTensorCell::evict() {
 }
 
 Tensor CheckPointTensorCell::get(const weak_intrusive_ptr<CheckPointTensorCell>& self) {
-  // it seems very strange to not just return *t.however auto evict might throw it out.
+  // it seems very strange to not just return *t. however auto evict might throw it out.
   Tensor ret;
   if (!t) {
     remat->remat();
@@ -158,7 +174,7 @@ Tensor CheckPointTensorCell::get(const weak_intrusive_ptr<CheckPointTensorCell>&
     ret = *t;
   }
   last_used_time = std::chrono::system_clock::now();
-  if (t && ecn != nullptr) {
+  if (ecn != nullptr && epoch == CheckPointPool::singleton().epoch) {
     ecn->get_t().last_used_time = last_used_time;
   }
   return ret;
@@ -170,7 +186,11 @@ void CheckPointTensorCell::fill(const Tensor& t, const weak_intrusive_ptr<CheckP
     last_used_time = before_call;
     if (t.defined()) {
       memory = t.numel() * t.itemsize();
-      if (memory > 0 && this->can_evict) {
+      long ignore_under = 0;
+      if (CheckPointPool::singleton().has_ignore_small_tensor) {
+        ignore_under = CheckPointPool::singleton().ignore_small_tensor;
+      }
+      if (memory > ignore_under && this->can_evict) {
         CheckPointPool::singleton().tensors.push_back(self);
       }
     }
@@ -180,8 +200,10 @@ void CheckPointTensorCell::fill(const Tensor& t, const weak_intrusive_ptr<CheckP
 }
 
 void CheckPointTensorCell::release_resources() {
-  t.reset();
-  remat.reset();
+  if (CheckPointPool::singleton().has_banishing) {
+    t.reset();
+    remat.reset();
+  }
 }
 
 void CheckPointTensorImpl::release_resources() {
@@ -253,7 +275,6 @@ CheckPointTensorCell::CheckPointTensorCell(const UndefinedTensorImpl&) :
   t(std::make_unique<Tensor>()) {
 }
 
-// TODO: implement.
 bool CheckPointPool::should_evict() {
   if (has_memory_budget) {
     auto device_stat = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
@@ -272,7 +293,7 @@ bool CheckPointTensorImpl::is_contiguous(at::MemoryFormat memory_format) const {
 }
 
 int64_t CheckPointTensorImpl::dim() const {
-  if(ref->value->is_undefined) {
+  if (ref->value->is_undefined) {
     gdb();
   }
   TORCH_CHECK(!ref->value->is_undefined);
@@ -285,7 +306,7 @@ const Storage& CheckPointTensorImpl::storage() const {
 }
 
 IntArrayRef CheckPointTensorImpl::sizes() const {
-  if(ref->value->is_undefined) {
+  if (ref->value->is_undefined) {
     gdb();
   }
   TORCH_CHECK(!ref->value->is_undefined);
@@ -318,7 +339,7 @@ void CheckPointTensorImpl::set_storage_offset(int64_t storage_offset) {
 }
 
 IntArrayRef CheckPointTensorImpl::strides() const {
-  if(ref->value->is_undefined) {
+  if (ref->value->is_undefined) {
     gdb();
   }
   TORCH_CHECK(!ref->value->is_undefined);
@@ -330,7 +351,7 @@ void CheckPointTensorImpl::shallow_copy_from(const c10::intrusive_ptr<TensorImpl
 }
 
 int64_t CheckPointTensorImpl::numel() const {
-  if(ref->value->is_undefined) {
+  if (ref->value->is_undefined) {
     gdb();
   }
   TORCH_CHECK(!ref->value->is_undefined);
@@ -398,10 +419,18 @@ void Rematerializer::remat() {
   auto res = calculate();
   const auto& values = std::get<0>(res);
   TORCH_CHECK(values.size() == outputs.size());
+  bool adjusted_compute_cost = false;
   for (size_t i = 0; i < values.size(); ++i) {
     weak output = outputs[i];
     if (strong s = output.lock()) {
       s->fill(values[i], output, std::get<1>(res), std::get<2>(res));
+      if (!adjusted_compute_cost) {
+        adjusted_compute_cost = true;
+        TORCH_CHECK(s->ecn != nullptr);
+        if (s->epoch == CheckPointPool::singleton().epoch) {
+          s->ecn->get_t().compute_cost -= compute_cost;
+        }
+      }
     }
   }
 }
@@ -450,9 +479,9 @@ namespace native {
     CheckPointPool::singleton().has_banishing = false;
     return 0;
   }
-  long set_batched_eviction_factor(long l) {
+  long set_batched_eviction_factor(double d) {
     CheckPointPool::singleton().has_batched_eviction_factor = true;
-    CheckPointPool::singleton().batched_eviction_factor = l;
+    CheckPointPool::singleton().batched_eviction_factor = d;
     return 0;
   }
   long unset_batched_eviction_factor() {
