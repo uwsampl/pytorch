@@ -22,7 +22,7 @@ CheckPointPool& CheckPointPool::singleton() {
 
 void CheckPointPool::clear() {
   tensors.clear();
-  ec.clear();
+  //ec.clear();
 }
 
 CheckPointInfo merge(CheckPointInfo l, CheckPointInfo r) {
@@ -255,8 +255,11 @@ CheckPointTensorCell::CheckPointTensorCell(const UndefinedTensorImpl&) :
 
 // TODO: implement.
 bool CheckPointPool::should_evict() {
+  if (has_memory_budget) {
+    auto device_stat = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
+    return device_stat.allocated_bytes[0].current > memory_budget;
+  }
   return false;
-  return tensors.size() > 10;
 }
 
 bool CheckPointTensorImpl::has_storage() const {
@@ -426,8 +429,43 @@ EquivalentClassNode<CheckPointInfo>* Rematerializer::get_ecn() {
 }
 
 namespace native {
-  int clear_checkpointpool() {
+  long clear_checkpointpool() {
     CheckPointPool::singleton().clear();
+    return 0;
+  }
+  long set_memory_budget(long l) {
+    CheckPointPool::singleton().has_memory_budget = true;
+    CheckPointPool::singleton().memory_budget = l;
+    return 0;
+  }
+  long unset_memory_budget() {
+    CheckPointPool::singleton().has_memory_budget = false;
+    return 0;
+  }
+  long set_banishing() {
+    CheckPointPool::singleton().has_banishing = true;
+    return 0;
+  }
+  long unset_banishing() {
+    CheckPointPool::singleton().has_banishing = false;
+    return 0;
+  }
+  long set_batched_eviction_factor(long l) {
+    CheckPointPool::singleton().has_batched_eviction_factor = true;
+    CheckPointPool::singleton().batched_eviction_factor = l;
+    return 0;
+  }
+  long unset_batched_eviction_factor() {
+    CheckPointPool::singleton().has_batched_eviction_factor = false;
+    return 0;
+  }
+  long set_ignore_small_tensor(long l) {
+    CheckPointPool::singleton().has_ignore_small_tensor = true;
+    CheckPointPool::singleton().ignore_small_tensor = l;
+    return 0;
+  }
+  long unset_ignore_small_tensor() {
+    CheckPointPool::singleton().has_ignore_small_tensor = false;
     return 0;
   }
 }
