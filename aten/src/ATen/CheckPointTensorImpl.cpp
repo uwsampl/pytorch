@@ -170,7 +170,7 @@ void CheckPointTensorCell::fill(const Tensor& t, const weak_intrusive_ptr<CheckP
     last_used_time = before_call;
     if (t.defined()) {
       memory = t.numel() * t.itemsize();
-      if (memory > 0) {
+      if (memory > 0 && this->can_evict) {
         CheckPointPool::singleton().tensors.push_back(self);
       }
     }
@@ -218,8 +218,8 @@ void CheckPointPool::auto_evict() {
   }
 }
 
-CheckPointTensorCell::CheckPointTensorCell(const intrusive_ptr<Rematerializer>& remat, const Unsafe&) :
-  can_evict(true),
+  CheckPointTensorCell::CheckPointTensorCell(const intrusive_ptr<Rematerializer>& remat, bool is_evictable, const Unsafe&) :
+  can_evict(is_evictable),
   remat(remat),
   ecn(remat->get_ecn()) {
   for (const auto& i : remat->input_values) {
@@ -346,12 +346,13 @@ CheckPointTensorImpl::CheckPointTensorImpl(const intrusive_ptr<CheckPointTensorI
 }
 
 Tensors CheckPointTensorImpl::make(const rematerialize_function_t& remat,
-                                   const strongs& input_values) {
+                                   const strongs& input_values,
+                                   bool is_evictable) {
   auto rematerializer = intrusive_ptr<Rematerializer>::make(remat, input_values);
   auto res = rematerializer->calculate();
   Tensors ret;
   for (const Tensor& t : std::get<0>(res)) {
-    strong cptc = strong::make(rematerializer, Unsafe{});
+    strong cptc = strong::make(rematerializer, is_evictable, Unsafe{});
     cptc->fill(t, weak(cptc), std::get<1>(res), std::get<2>(res));
     rematerializer->outputs.push_back(weak(cptc));
     ret.push_back(Tensor(intrusive_ptr<CheckPointTensorImpl>::make(cptc)));

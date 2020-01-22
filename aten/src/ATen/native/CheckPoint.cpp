@@ -701,4 +701,17 @@ Tensor checkpoint_embedding_backward(const Tensor & grad, const Tensor & indices
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
+std::tuple<Tensor, Tensor> checkpoint__fused_dropout(const Tensor & self, double p, at::Generator* g) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::_fused_dropout(vec[0], p);
+    return {std::get<0>(res), std::get<1>(res)};
+  };
+  strongs s = {from_tensor(self)};
+  // make non-evictable for now because dropout is effectful
+  // TODO(@M.K.): we should make a functional version of this operator
+  auto res = CheckPointTensorImpl::make(rt, s, false);
+  return {res[0], res[1]};
+}
+
 }}
