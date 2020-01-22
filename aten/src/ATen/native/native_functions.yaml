@@ -6708,7 +6708,7 @@
 - func: unset_memory_budget() -> int
 - func: set_banishing() -> int
 - func: unset_banishing() -> int
-- func: set_batched_eviction_factor(int i) -> int
+- func: set_batched_eviction_factor(float f) -> int
 - func: unset_batched_eviction_factor() -> int
 - func: set_ignore_small_tensor(int i) -> int
 - func: unset_ignore_small_tensor() -> int
