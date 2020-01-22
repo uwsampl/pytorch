@@ -102,6 +102,9 @@ class RNNBase(Module):
         Right now, this works only if the module is on the GPU and cuDNN is enabled.
         Otherwise, it's a no-op.
         """
+        # kludge: doesn't work with DTR for some reason
+        return
+        
         any_param = next(self.parameters()).data
         if not any_param.is_cuda or not torch.backends.cudnn.is_acceptable(any_param):
             return
