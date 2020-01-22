@@ -1038,9 +1038,18 @@
 
 - func: embedding(Tensor weight, Tensor indices, int padding_idx=-1, bool scale_grad_by_freq=False, bool sparse=False) -> Tensor
   use_c10_dispatcher: full
+  dispatch:
+    CPU: embedding
+    CUDA: embedding
+    CheckPoint: checkpoint_embedding
 
 - func: embedding_backward(Tensor grad, Tensor indices, int num_weights, int padding_idx, bool scale_grad_by_freq, bool sparse) -> Tensor
   use_c10_dispatcher: full
+  dispatch:
+    CPU: embedding_backward
+    CUDA: embedding_backward
+    CheckPoint: checkpoint_embedding_backward
+
 
 - func: embedding_dense_backward(Tensor grad_output, Tensor indices, int num_weights, int padding_idx, bool scale_grad_by_freq) -> Tensor
   use_c10_dispatcher: full
@@ -4707,6 +4716,7 @@
     CUDA: legacy::cuda::_th_index_select
     SparseCPU: index_select_sparse
     SparseCUDA: index_select_sparse
+    CheckPoint: checkpoint_index_select
 
 - func: index_select.dimname_out(Tensor self, Dimname dim, Tensor index, *, Tensor(a!) out) -> Tensor(a!)
 
