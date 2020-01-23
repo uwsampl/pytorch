@@ -197,6 +197,15 @@ Tensor& checkpoint_relu_(Tensor& a) {
   return a;
 }
 
+Tensor& checkpoint_zero_(Tensor& a) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      vec.at(0).zero_();
+    };
+  CheckPointTensorImpl::mutate(mt, {a});
+  return a;
+}
+
 Tensor checkpoint_clone(const Tensor& a, c10::optional<c10::MemoryFormat> b) {
   //todo: check b
   return a;
@@ -300,12 +309,6 @@ Tensor checkpoint_div(Tensor const&, Tensor const&) {
 
 Tensor checkpoint_sub(Tensor const&, Tensor const&, c10::Scalar) {
   AT_ERROR("sub");
-}
-
-Tensor& checkpoint_zero_(Tensor& a) {
-  auto new_a = checkpoint_like_zeros(a);
-  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
-  return a;
 }
 
 Tensor& checkpoint_binary_cross_entropy_backward_out(Tensor&, Tensor const&, Tensor const&, Tensor const&, Tensor const&, long) {
