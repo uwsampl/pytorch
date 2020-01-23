@@ -19,6 +19,7 @@
 #include <c10/util/python_stub.h>
 #include <c10/core/TensorImpl.h>
 #include <ATen/Tensor.h>
+#include <ATen/native/CheckPoint.h>
 
 namespace at {
 
@@ -254,6 +255,7 @@ struct CheckPointTensorImplCell : intrusive_ptr_target {
   }
 };
 
+using mutate_function_t = std::function<void(const Tensors&)>;
 // A CheckPointTensorImpl is simply a reference to CheckPointTensorCell.
 // As it provide the same interface (without mutable View, which we will not use),
 // one could just wrap Variable around this for ad.
@@ -265,6 +267,18 @@ struct CAFFE2_API CheckPointTensorImpl final : public TensorImpl {
   static Tensors make(const rematerialize_function_t& remat,
                       const strongs& input_values,
                       bool is_evictable=true);
+  // Just like make, but try to do inplace update to save memory/efficiency.
+  // assume the zeroth argument get inplace updated, but nothing else, which is pytorch calling convention.
+  // There is a slow path and a fast path.
+  // The slow path call Tensor::make, with the rematerialization function being a clone and a in place update on the clone.
+  // Then the zeroth argument will update the pointer to point to the new value.
+  // The fast path happens when, upon taking the slow path, the raw tensor of the original zeroth input will get gced.
+  // It mean it will happens when banishing is on, the zero argument's cell only has one use_count (from the reference),
+  // and the raw tensor only have one use_count (no split or view)
+  // If so we just steal the tensor, banish the cell, then apply the function.
+  static void mutate(const mutate_function_t& mutate,
+                     const Tensors& input_values,
+                     bool is_evictable=true);
   explicit CheckPointTensorImpl(const intrusive_ptr<CheckPointTensorCell>& cell);
   explicit CheckPointTensorImpl(const UndefinedTensorImpl&);
   IntArrayRef strides() const override;
@@ -284,5 +298,36 @@ struct CAFFE2_API CheckPointTensorImpl final : public TensorImpl {
   IntArrayRef sizes() const override;
   int64_t size(int64_t d) const override;
 };
+
+inline CheckPointTensorImpl* get_cpti(const Tensor& t) {
+  auto* cpti = dynamic_cast<CheckPointTensorImpl*>(t.unsafeGetTensorImpl());
+  TORCH_CHECK(cpti != nullptr);
+  return cpti;
+}
+
+inline strong from_tensor(const Tensor& t) {
+  auto* cpt = dynamic_cast<CheckPointTensorImpl*>(t.unsafeGetTensorImpl());
+  if(cpt != nullptr) {
+    return get_cpti(t)->ref->value;
+  } else {
+    return get_cpti(native::checkpoint(t))->ref->value;
+  }
+}
+
+inline strong from_tensor_maybe(const Tensor& t) {
+  auto* ut = dynamic_cast<UndefinedTensorImpl*>(t.unsafeGetTensorImpl());
+  if (ut != nullptr) {
+    return strong::make(*ut);
+  }
+  return from_tensor(t);
+}
+
+inline Tensor get(const strong& s) {
+  return s->get(weak(s));
+}
+
+inline intrusive_ptr<CheckPointTensorImplCell> cell_from_tensor(const Tensor& t) {
+  return get_cpti(t)->ref;
+}
 
 } // namespace at

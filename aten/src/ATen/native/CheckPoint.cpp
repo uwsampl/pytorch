@@ -3,37 +3,6 @@
 
 namespace at { namespace native {
 
-CheckPointTensorImpl* get_cpti(const Tensor& t) {
-  auto* cpti = dynamic_cast<CheckPointTensorImpl*>(t.unsafeGetTensorImpl());
-  TORCH_CHECK(cpti != nullptr);
-  return cpti;
-}
-
-strong from_tensor(const Tensor& t) {
-  auto* cpt = dynamic_cast<CheckPointTensorImpl*>(t.unsafeGetTensorImpl());
-  if(cpt != nullptr) {
-    return get_cpti(t)->ref->value;
-  } else {
-    return get_cpti(checkpoint(t))->ref->value;
-  }
-}
-
-strong from_tensor_maybe(const Tensor& t) {
-  auto* ut = dynamic_cast<UndefinedTensorImpl*>(t.unsafeGetTensorImpl());
-  if (ut != nullptr) {
-    return strong::make(*ut);
-  }
-  return from_tensor(t);
-}
-
-Tensor get(const strong& s) {
-  return s->get(weak(s));
-}
-
-intrusive_ptr<CheckPointTensorImplCell> cell_from_tensor(const Tensor& t) {
-  return get_cpti(t)->ref;
-}
-
 Tensor checkpoint(const Tensor& t) {
   return Tensor(intrusive_ptr<CheckPointTensorImpl>::make(t.detach()));
 }
@@ -202,20 +171,29 @@ std::tuple<Tensor, Tensor> checkpoint_nll_loss_forward(const Tensor& a, const Te
 }
 
 Tensor& checkpoint_add_(Tensor& a, const Tensor& b, Scalar c) {
-  auto new_a = checkpoint_add(a, b, c);
-  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      vec.at(0).add_(vec.at(1), c);
+    };
+  CheckPointTensorImpl::mutate(mt, {a, b});
   return a;
 }
 
 Tensor& checkpoint_mul_(Tensor& a, const Tensor& b) {
-  auto new_a = checkpoint_mul(a, b);
-  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      vec.at(0).mul_(vec.at(1));
+    };
+  CheckPointTensorImpl::mutate(mt, {a, b});
   return a;
 }
 
 Tensor& checkpoint_relu_(Tensor& a) {
-  auto new_a = checkpoint_relu(a);
-  cell_from_tensor(a)->value = cell_from_tensor(new_a)->value;
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      vec.at(0).relu_();
+    };
+  CheckPointTensorImpl::mutate(mt, {a});
   return a;
 }
 
@@ -660,7 +638,7 @@ std::tuple<Tensor, Tensor, Tensor> checkpoint_cudnn_batch_norm_backward(Tensor c
 }
 
 Tensor checkpoint_select(Tensor const&, long, long) {
-AT_ERROR("select");
+  AT_ERROR("select");
 }
 
 Tensor checkpoint_ne(const Tensor& a, c10::Scalar b) {
