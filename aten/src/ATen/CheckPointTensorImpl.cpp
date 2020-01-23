@@ -169,6 +169,7 @@ Tensor CheckPointTensorCell::get(const weak_intrusive_ptr<CheckPointTensorCell>&
     TORCH_CHECK(t, "t in get is invalid");
     ret = *t;
     TORCH_CHECK(ecn != nullptr);
+    //CheckPointPool::singleton().auto_evict();
     // ecn->get_t() = CheckPointInfo::invalid();
   } else {
     ret = *t;
@@ -382,6 +383,41 @@ Tensors CheckPointTensorImpl::make(const rematerialize_function_t& remat,
     ret.push_back(Tensor(intrusive_ptr<CheckPointTensorImpl>::make(cptc)));
   }
   return ret;
+}
+
+void CheckPointTensorImpl::mutate(const mutate_function_t& mutate,
+                                  const Tensors& inputs,
+                                  bool is_evictable) {
+  if (CheckPointPool::singleton().has_banishing) {
+    CheckPointTensorImpl* var = get_cpti(inputs[0]);
+    if (var->ref.use_count() == 1) {
+      if (var->ref->value->t && var->ref->value->t->use_count() == 1) {
+        // fast path
+        Tensors new_input_values;
+        for (const Tensor& t : inputs) {
+          new_input_values.push_back(native::decheckpoint(t));
+        }
+        new_input_values[0] = *var->ref->value->t;
+        mutate(new_input_values);
+        cell_from_tensor(inputs[0])->value = strong::make(*var->ref->value->t);
+        return;
+      }
+    }
+  }
+  // slow path.
+  auto remat = [=](const Tensors& t) -> Tensors {
+    auto t0 = t[0].clone();
+    Tensors new_input_values = t;
+    new_input_values[0] = t0;
+    mutate(new_input_values);
+    return {t0};
+  };
+  strongs input_values;
+  for (const Tensor& t : inputs) {
+    input_values.push_back(from_tensor(t));
+  }
+  auto modified = CheckPointTensorImpl::make(remat, input_values, is_evictable)[0];
+  cell_from_tensor(inputs[0])->value = cell_from_tensor(modified)->value;
 }
 
 void Rematerializer::prepare() {
