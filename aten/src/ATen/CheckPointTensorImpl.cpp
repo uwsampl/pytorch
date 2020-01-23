@@ -126,7 +126,7 @@ void CheckPointPool::evict() {
     evict_from_idx(evict_idx);
     if (has_batched_eviction_factor) {
       loop([&](size_t i, double cptc_evict_score) {
-        if (cptc_evict_score < evict_score * batched_eviction_factor) {
+        if (cptc_evict_score * batched_eviction_factor < evict_score) {
           evict_from_idx(i);
         }
       });
