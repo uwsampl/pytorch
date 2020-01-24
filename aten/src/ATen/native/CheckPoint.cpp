@@ -380,12 +380,39 @@ Tensor checkpoint_sub(Tensor const& a, Tensor const& b, c10::Scalar c) {
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
-Tensor _s_where_checkpoint(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c) {
+Tensor checkpoint__s_where(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
       return {at::_s_where(vec[0], vec[1], vec[2])};
     };
   strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
+Tensor checkpoint_kl_div(at::Tensor const& a, at::Tensor const& b, long c) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::kl_div(vec[0], vec[1], c)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
+Tensor checkpoint_kl_div_backward(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, long d) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::kl_div_backward(vec[0], vec[1], vec[2], d)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
+Tensor checkpoint_sigmoid_backward(at::Tensor const& a, at::Tensor const& b) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::sigmoid_backward(vec[0], vec[1])};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
