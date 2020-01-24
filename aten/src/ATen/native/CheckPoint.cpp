@@ -878,4 +878,74 @@ std::tuple<Tensor, Tensor> checkpoint__fused_dropout(const Tensor & self, double
   return {res[0], res[1]};
 }
 
+std::tuple<Tensor, Tensor, Tensor> checkpoint_lstm(const Tensor & input, c10::ArrayRef<Tensor> hx, c10::ArrayRef<Tensor> params, bool has_biases, long num_layers, double dropout, bool train, bool bidirectional, bool batch_first) {
+  strongs s;
+  s.push_back(from_tensor(input));
+  int num_hx = 0;
+  int num_params = 0;
+  for (const Tensor& h : hx) {
+    s.push_back(from_tensor(h));
+    num_hx += 1;
+  }
+  for (const Tensor& p : params) {
+    s.push_back(from_tensor(p));
+    num_params += 1;
+  }
+
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::lstm(vec[0], ArrayRef<Tensor>(vec.data() + 1, num_hx),
+                        ArrayRef<Tensor>(vec.data() + 1 + num_hx, num_params),
+                        has_biases, num_layers, dropout,
+                        train, bidirectional, batch_first);
+    return {std::get<0>(res), std::get<1>(res), std::get<2>(res)};
+  };
+
+  auto res = CheckPointTensorImpl::make(rt, s);
+  return {res[0], res[1], res[2]};
+}
+
+std::tuple<Tensor, Tensor, Tensor> checkpoint_lstm(const Tensor & input, const Tensor & batch_sizes,
+                                                   c10::ArrayRef<Tensor> hx, c10::ArrayRef<Tensor> params,
+                                                   bool has_biases, long num_layers, double dropout,
+                                                   bool train, bool bidirectional) {
+  strongs s;
+  s.push_back(from_tensor(input));
+  s.push_back(from_tensor(batch_sizes));
+  int num_hx = 0;
+  int num_params = 0;
+  for (const Tensor& h : hx) {
+    s.push_back(from_tensor(h));
+    num_hx += 1;
+  }
+  for (const Tensor& p : params) {
+    s.push_back(from_tensor(p));
+    num_params += 1;
+  }
+
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::lstm(vec[0], vec[1],
+                        ArrayRef<Tensor>(vec.data() + 2, num_hx),
+                        ArrayRef<Tensor>(vec.data() + 2 + num_hx, num_params),
+                        has_biases, num_layers, dropout,
+                        train, bidirectional);
+    return {std::get<0>(res), std::get<1>(res), std::get<2>(res)};
+  };
+
+  auto res = CheckPointTensorImpl::make(rt, s);
+  return {res[0], res[1], res[2]};
+}
+
+Tensor checkpoint_dropout(const Tensor& input, double p, bool train) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    return {at::dropout(vec[0], p, train)};
+  };
+  strongs s = {from_tensor(input)};
+  // make non-evictable for now because dropout is effectful
+  // TODO(@M.K.): we should make a functional version of this operator
+  return CheckPointTensorImpl::make(rt, s, false)[0];
+}
+
 }}

@@ -187,6 +187,10 @@
 - func: dropout(Tensor input, float p, bool train) -> Tensor
   use_c10_dispatcher: full
   supports_named_tensor: True
+  dispatch:
+    CUDA: dropout
+    CheckPoint: checkpoint_dropout
+
 
 - func: dropout_(Tensor(a!) self, float p, bool train) -> Tensor(a!)
   supports_named_tensor: True
@@ -2466,6 +2470,7 @@
     CPU: select_backward
     CUDA: select_backward
     CheckPoint: checkpoint_select_backward
+
 - func: selu(Tensor self) -> Tensor
   use_c10_dispatcher: full
 
@@ -3872,8 +3877,14 @@
 
 # RNN cells and layers
 - func: lstm.input(Tensor input, Tensor[] hx, Tensor[] params, bool has_biases, int num_layers, float dropout, bool train, bool bidirectional, bool batch_first) -> (Tensor, Tensor, Tensor)
+  dispatch:
+    CUDA: lstm
+    CheckPoint: checkpoint_lstm
 
 - func: lstm.data(Tensor data, Tensor batch_sizes, Tensor[] hx, Tensor[] params, bool has_biases, int num_layers, float dropout, bool train, bool bidirectional) -> (Tensor, Tensor, Tensor)
+  dispatch:
+    CUDA: lstm
+    CheckPoint: checkpoint_lstm
 
 - func: gru.input(Tensor input, Tensor hx, Tensor[] params, bool has_biases, int num_layers, float dropout, bool train, bool bidirectional, bool batch_first) -> (Tensor, Tensor)
 
