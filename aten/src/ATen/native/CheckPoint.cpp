@@ -105,6 +105,22 @@ Tensor checkpoint_tanh_backward(at::Tensor const& a, at::Tensor const& b) {
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
+Tensor select_backward(at::Tensor const& grad, c10::ArrayRef<long> input_sizes, long dim, long index) {
+  auto grad_input = at::zeros(input_sizes, grad.options());
+  grad_input.select(dim, index).copy_(grad);
+  return grad_input;
+}
+
+Tensor checkpoint_select_backward(at::Tensor const& grad, c10::ArrayRef<long> input_sizes, long dim, long index) {
+  std::vector<long> input_sizes_ = input_sizes.vec();
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::select_backward(vec[0], input_sizes, dim, index)};
+    };
+  strongs s = {from_tensor(grad)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
 Tensor checkpoint_gelu(const Tensor& a) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
