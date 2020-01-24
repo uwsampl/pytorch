@@ -2459,6 +2459,13 @@
     CUDA: select
     CheckPoint: checkpoint_select
 
+- func: select_bcakward(Tensor grad, int[] sizes, int dim, int index) -> Tensor
+  variants: function
+  device_guard: False
+  dispatch:
+    CPU: select_backward
+    CUDA: select_backward
+    CheckPoint: checkpoint_select_backward
 - func: selu(Tensor self) -> Tensor
   use_c10_dispatcher: full
 
@@ -2468,7 +2475,6 @@
   use_c10_dispatcher: full
 
 - func: celu_(Tensor(a!) self, Scalar alpha=1.0) -> Tensor(a!)
-
 
 - func: sigmoid(Tensor self) -> Tensor
   use_c10_dispatcher: full
@@ -5067,6 +5073,10 @@
 - func: sign(Tensor self) -> Tensor
   variants: function, method
   supports_named_tensor: True
+  dispatch:
+    CPU: sign
+    CUDA: sign
+    CheckPoint: checkpoint_sign
 
 - func: sign_(Tensor(a!) self) -> Tensor(a!)
   variants: method
@@ -5077,6 +5087,7 @@
   dispatch:
     CPU: sign_out
     CUDA: sign_out
+    CheckPoint: checkpoint_sign_out
 
 - func: dist(Tensor self, Tensor other, Scalar p=2) -> Tensor
   use_c10_dispatcher: full
@@ -6508,7 +6519,7 @@
   dispatch:
     CPU: tanh_backward
     CUDA: tanh_backward
-    CheckPoint: tanh_backward
+    CheckPoint: checkpoint_tanh_backward
 
 # What's a thnn_conv_ versus a slow_conv_?
 #
