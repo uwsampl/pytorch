@@ -413,6 +413,7 @@
     CPU: as_strided_tensorimpl
     CUDA: as_strided_tensorimpl
     QuantizedCPU: as_strided_qtensorimpl
+    CheckPoint: checkpoint_as_strided
   device_guard: False
   supports_named_tensor: True
 
@@ -2302,6 +2303,17 @@
 
 - func: repeat(Tensor self, int[] repeats) -> Tensor
   variants: method  # This is method-only to match the previous tensor API. In the future we could make this a function too.
+  dispatch:
+    CPU: repeat
+    CUDA: repeat
+    CheckPoint: checkpoint_repeat
+
+#- func: repeat_backward(Tensor self, int dim, int[] repeats) -> Tensor
+#  variants: function
+#  dispatch:
+#    CPU: repeat_backward
+#    CUDA: repeat_backward
+#    CheckPoint: checkpoint_repeat_backward
 
 - func: repeat_interleave.Tensor(Tensor repeats) -> Tensor
   use_c10_dispatcher: full
@@ -2613,14 +2625,26 @@
 - func: squeeze_(Tensor(a!) self) -> Tensor(a!)
   variants: method
   device_guard: False
+  dispatch:
+    CPU: squeeze_
+    CUDA: squeeze_
+    CheckPoint: checkpoint_squeeze_
 
 - func: squeeze_.dim(Tensor(a!) self, int dim) -> Tensor(a!)
   variants: method
   device_guard: False
+  dispatch:
+    CPU: squeeze_
+    CUDA: squeeze_
+    CheckPoint: checkpoint_squeeze_
 
 - func: squeeze_.dimname(Tensor(a!) self, Dimname dim) -> Tensor(a!)
   variants: method
   device_guard: False
+  dispatch:
+    CPU: squeeze_
+    CUDA: squeeze_
+    CheckPoint: checkpoint_squeeze_
 
 - func: sspaddmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor
   use_c10_dispatcher: full
@@ -2791,6 +2815,7 @@
     CPU: tanh
     CUDA: tanh
     QuantizedCPU: quantized_tanh
+    CheckPoint: checkpoint_tanh
 
 - func: tanh_(Tensor(a!) self) -> Tensor(a!)
   supports_named_tensor: True
@@ -3027,6 +3052,7 @@
   dispatch:
     CPU: _s_where_cpu
     CUDA: _s_where_cuda
+    CheckPoint: _s_where_checkpoint
 
 - func: norm_except_dim(Tensor v, int pow=2, int dim=0) -> Tensor
   variants: function
@@ -5399,11 +5425,13 @@
   dispatch:
     CPU: legacy::cpu::_th_cat
     CUDA: legacy::cuda::_th_cat
+    CheckPoint: checkpoint__cat
 
 - func: _cat.out(Tensor[] tensors, int dim=0, *, Tensor(a!) out) -> Tensor(a!)
   dispatch:
     CPU: legacy::cpu::_th_cat_out
     CUDA: legacy::cuda::_th_cat_out
+    CheckPoint: checkpoint__cat_out
 
 - func: _mode(Tensor self, int dim=-1, bool keepdim=False) -> (Tensor, Tensor)
   dispatch:
@@ -6468,6 +6496,10 @@
 - func: tanh_backward(Tensor grad_output, Tensor output) -> Tensor
   use_c10_dispatcher: full
   python_module: nn
+  dispatch:
+    CPU: tanh_backward
+    CUDA: tanh_backward
+    CheckPoint: tanh_backward
 
 # What's a thnn_conv_ versus a slow_conv_?
 #
