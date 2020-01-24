@@ -308,7 +308,7 @@ inline CheckPointTensorImpl* get_cpti(const Tensor& t) {
 inline strong from_tensor(const Tensor& t) {
   auto* cpt = dynamic_cast<CheckPointTensorImpl*>(t.unsafeGetTensorImpl());
   if(cpt != nullptr) {
-    return get_cpti(t)->ref->value;
+    return cpt->ref->value;
   } else {
     return get_cpti(native::checkpoint(t))->ref->value;
   }

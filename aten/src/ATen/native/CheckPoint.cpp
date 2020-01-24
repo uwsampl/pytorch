@@ -96,6 +96,15 @@ Tensor checkpoint_threshold_backward(const Tensor& a, const Tensor& b, c10::Scal
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
+Tensor checkpoint_tanh_backward(at::Tensor const& a, at::Tensor const& b) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::tanh_backward(vec[0], vec[1])};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
 Tensor checkpoint_gelu(const Tensor& a) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
@@ -159,6 +168,15 @@ Tensor checkpoint_transpose(const Tensor& a, Dimname b, Dimname c) {
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
+Tensor checkpoint_sign(at::Tensor const& a) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::sign(vec[0])};
+    };
+  strongs s = {from_tensor(a)};
+  return CheckPointTensorImpl::make(rt, s)[0];
+}
+
 std::tuple<Tensor, Tensor> checkpoint_nll_loss_forward(const Tensor& a, const Tensor& b, const Tensor& c, long d, long e) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
@@ -194,6 +212,16 @@ Tensor& checkpoint_relu_(Tensor& a) {
       vec.at(0).relu_();
     };
   CheckPointTensorImpl::mutate(mt, {a});
+  return a;
+}
+
+Tensor& checkpoint_sign_out(at::Tensor& a, at::Tensor const& b) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      at::sign_out(a_, vec.at(1));
+    };
+  CheckPointTensorImpl::mutate(mt, {a, b});
   return a;
 }
 
