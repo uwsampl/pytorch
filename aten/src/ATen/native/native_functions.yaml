@@ -166,6 +166,7 @@
   variants: function
   dispatch:
      CUDA: masked_scale_cuda
+     CheckPoint: checkpoint__masked_scale
 
 - func: _sobol_engine_draw(Tensor quasi, int n, Tensor sobolstate, int dimension, int num_generated, ScalarType? dtype) -> (Tensor, Tensor)
 
@@ -2466,6 +2467,7 @@
     CPU: select_backward
     CUDA: select_backward
     CheckPoint: checkpoint_select_backward
+
 - func: selu(Tensor self) -> Tensor
   use_c10_dispatcher: full
 
@@ -3872,8 +3874,14 @@
 
 # RNN cells and layers
 - func: lstm.input(Tensor input, Tensor[] hx, Tensor[] params, bool has_biases, int num_layers, float dropout, bool train, bool bidirectional, bool batch_first) -> (Tensor, Tensor, Tensor)
+  dispatch:
+    CUDA: lstm
+    CheckPoint: checkpoint_lstm
 
 - func: lstm.data(Tensor data, Tensor batch_sizes, Tensor[] hx, Tensor[] params, bool has_biases, int num_layers, float dropout, bool train, bool bidirectional) -> (Tensor, Tensor, Tensor)
+  dispatch:
+    CUDA: lstm
+    CheckPoint: checkpoint_lstm
 
 - func: gru.input(Tensor input, Tensor hx, Tensor[] params, bool has_biases, int num_layers, float dropout, bool train, bool bidirectional, bool batch_first) -> (Tensor, Tensor)
 
