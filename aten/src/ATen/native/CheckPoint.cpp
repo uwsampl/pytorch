@@ -937,15 +937,13 @@ std::tuple<Tensor, Tensor, Tensor> checkpoint_lstm(const Tensor & input, const T
   return {res[0], res[1], res[2]};
 }
 
-Tensor checkpoint_dropout(const Tensor& input, double p, bool train) {
+Tensor checkpoint__masked_scale(const Tensor & self, const Tensor & mask, double scale) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-    return {at::dropout(vec[0], p, train)};
+    return {at::_masked_scale(vec[0], vec[1], scale)};
   };
-  strongs s = {from_tensor(input)};
-  // make non-evictable for now because dropout is effectful
-  // TODO(@M.K.): we should make a functional version of this operator
-  return CheckPointTensorImpl::make(rt, s, false)[0];
+  strongs s = {from_tensor(self), from_tensor(mask)};
+  return CheckPointTensorImpl::make(rt, s)[0];
 }
 
 }}
