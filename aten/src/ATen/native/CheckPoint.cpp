@@ -946,4 +946,55 @@ Tensor checkpoint__masked_scale(const Tensor & self, const Tensor & mask, double
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
+std::tuple<Tensor, Tensor, Tensor> checkpoint__thnn_fused_lstm_cell(const Tensor& input_gates, const Tensor& hidden_gates,
+                                                                    const Tensor& cx, const Tensor& input_bias,
+                                                                    const Tensor& hidden_bias) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::_thnn_fused_lstm_cell(vec[0], vec[1], vec[2], vec[3], vec[4]);
+    return {std::get<0>(res), std::get<1>(res), std::get<2>(res)};
+  };
+  strongs s = {from_tensor(input_gates), from_tensor(hidden_gates), from_tensor(cx),
+               from_tensor_maybe(input_bias), from_tensor_maybe(hidden_bias)};
+  auto res = CheckPointTensorImpl::make(rt, s);
+  return {res[0], res[1], res[2]};
+}
+
+std::tuple<Tensor, Tensor, Tensor, Tensor, Tensor> checkpoint__thnn_fused_lstm_cell_backward(const Tensor& grad_hy, const Tensor& grad_cy, const Tensor& cx, const Tensor& cy, const Tensor& workspace, bool has_bias) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::_thnn_fused_lstm_cell_backward(vec[0], vec[1], vec[2], vec[3], vec[4], has_bias);
+    return {std::get<0>(res), std::get<1>(res),
+        std::get<2>(res), std::get<3>(res), std::get<4>(res)};
+  };
+  strongs s = {from_tensor_maybe(grad_hy), from_tensor_maybe(grad_cy),
+               from_tensor(cx), from_tensor(cy), from_tensor(workspace)};
+  auto res = CheckPointTensorImpl::make(rt, s);
+  return {res[0], res[1], res[2], res[3], res[4]};
+}
+
+std::tuple<Tensor, Tensor> checkpoint__thnn_fused_gru_cell(const Tensor& input_gates, const Tensor& hidden_gates, const Tensor& hx, const Tensor& input_bias, const Tensor& hidden_bias) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::_thnn_fused_gru_cell(vec[0], vec[1], vec[2], vec[3], vec[4]);
+    return {std::get<0>(res), std::get<1>(res)};
+  };
+  strongs s = {from_tensor(input_gates), from_tensor(hidden_gates), from_tensor(hx),
+               from_tensor_maybe(input_bias), from_tensor_maybe(hidden_bias)};
+  auto res = CheckPointTensorImpl::make(rt, s);
+  return {res[0], res[1]};
+}
+
+std::tuple<Tensor, Tensor, Tensor, Tensor, Tensor> checkpoint__thnn_fused_gru_cell_backward(const Tensor& grad_hy, const Tensor& workspace, bool has_bias) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    auto res = at::_thnn_fused_gru_cell_backward(vec[0], vec[1], has_bias);
+    return {std::get<0>(res), std::get<1>(res),
+        std::get<2>(res), std::get<3>(res), std::get<4>(res)};
+  };
+  strongs s = {from_tensor(grad_hy), from_tensor(workspace)};
+  auto res = CheckPointTensorImpl::make(rt, s);
+  return {res[0], res[1], res[2], res[3], res[4]};
+}
+
 }}
