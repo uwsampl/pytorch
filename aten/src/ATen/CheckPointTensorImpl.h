@@ -142,6 +142,9 @@ static RegisterEvict register_evict;
 // As it hold lots of weak pointer, it is recommended to call clear()
 // after every forward/backward pass to improve performance.
 struct CAFFE2_API CheckPointPool {
+  CheckPointPool() {
+    tensors.reserve(10 * 1000);
+  }
   static CheckPointPool& singleton();
   long epoch = 0;
   // Clear all bookkeeping.
