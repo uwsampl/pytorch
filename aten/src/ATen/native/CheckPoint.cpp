@@ -1000,12 +1000,7 @@ std::tuple<Tensor, Tensor, Tensor, Tensor, Tensor> checkpoint__thnn_fused_gru_ce
 bool checkpoint_equal(const Tensor& self, const Tensor& other) {
   // should not try rematerializing this since the metadata
   // will surely be larger than a bool
-  strongs s = {from_tensor(self), from_tensor(other)};
-  std::vector<Tensor> args;
-  for (const auto& iv : s) {
-    args.push_back(iv->get(weak(iv)));
-  }
-  return at::equal(args[0], args[1]);
+  return at::equal(native::decheckpoint(self), native::decheckpoint(other));
 }
 
 }}
