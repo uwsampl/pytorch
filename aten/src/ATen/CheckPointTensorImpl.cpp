@@ -515,6 +515,14 @@ namespace native {
     CheckPointPool::singleton().has_banishing = false;
     return 0;
   }
+  long set_mutation() {
+    CheckPointPool::singleton().has_mutation = true;
+    return 0;
+  }
+  long unset_mutation() {
+    CheckPointPool::singleton().has_mutation = false;
+    return 0;
+  }
   long set_batched_eviction_factor(double d) {
     CheckPointPool::singleton().has_batched_eviction_factor = true;
     CheckPointPool::singleton().batched_eviction_factor = d;
@@ -526,13 +534,11 @@ namespace native {
   }
   long set_ignore_small_tensor(long l) {
     CheckPointPool::singleton().has_ignore_small_tensor = true;
-    CheckPointPool::singleton().has_mutation = l % 2 == 1;
-    CheckPointPool::singleton().ignore_small_tensor = (l / 2) * 2;
+    CheckPointPool::singleton().ignore_small_tensor = l;
     return 0;
   }
   long unset_ignore_small_tensor() {
     CheckPointPool::singleton().has_ignore_small_tensor = false;
-    CheckPointPool::singleton().has_mutation = false;
     return 0;
   }
 }
