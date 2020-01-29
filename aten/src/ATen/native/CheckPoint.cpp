@@ -531,19 +531,6 @@ Tensor checkpoint_prelu(Tensor const&, Tensor const&) {
   AT_ERROR("prelu");
 }
 
-Tensor checkpoint_max_pool2d(const Tensor& self, c10::ArrayRef<long> kernel_size, c10::ArrayRef<long> stride, c10::ArrayRef<long> padding, c10::ArrayRef<long> dilation, bool ceil_mode) {
-  std::vector<long> kernel_size_ = kernel_size.vec();
-  std::vector<long> stride_ = stride.vec();
-  std::vector<long> padding_ = padding.vec();
-  std::vector<long> dilation_ = dilation.vec();
-  rematerialize_function_t rt =
-    [=](const Tensors& vec) -> Tensors {
-    return {at::max_pool2d(vec[0], kernel_size_, stride_, padding_, dilation_, ceil_mode)};
-  };
-  strongs s = {from_tensor(self)};
-  return CheckPointTensorImpl::make(rt, s)[0];
-}
-
 Tensor checkpoint_max(Tensor const&) {
   AT_ERROR("max");
 }
