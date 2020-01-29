@@ -388,7 +388,7 @@ Tensors CheckPointTensorImpl::make(const rematerialize_function_t& remat,
 void CheckPointTensorImpl::mutate(const mutate_function_t& mutate,
                                   const Tensors& inputs,
                                   bool is_evictable) {
-  if (CheckPointPool::singleton().has_banishing) {
+  if (false && CheckPointPool::singleton().has_banishing) {
     CheckPointTensorImpl* var = get_cpti(inputs[0]);
     if (var->ref.use_count() == 1) {
       if (var->ref->value->t && var->ref->value->t->use_count() == 1) {
