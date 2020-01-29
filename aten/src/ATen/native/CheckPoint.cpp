@@ -865,16 +865,23 @@ Tensor checkpoint_as_strided(const Tensor& a, c10::ArrayRef<long> b, c10::ArrayR
   return CheckPointTensorImpl::make(rt, s)[0];
 }
 
-std::tuple<Tensor, Tensor> checkpoint__fused_dropout(const Tensor & self, double p, at::Generator* g) {
+template<typename T>
+struct Ref {
+  mutable T t;
+};
+
+std::tuple<Tensor, Tensor> checkpoint__fused_dropout(const Tensor & self, double p, Generator* g) {
+  Ref<std::shared_ptr<Generator>> gen;
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-    auto res = at::_fused_dropout(vec[0], p);
-    return {std::get<0>(res), std::get<1>(res)};
+      Generator* cur = gen.t ? gen.t.get() : g;
+      auto newG = cur->clone();
+      auto res = at::_fused_dropout(vec[0], p, cur);
+      gen.t = newG;
+      return {std::get<0>(res), std::get<1>(res)};
   };
   strongs s = {from_tensor(self)};
-  // make non-evictable for now because dropout is effectful
-  // TODO(@M.K.): we should make a functional version of this operator
-  auto res = CheckPointTensorImpl::make(rt, s, false);
+  auto res = CheckPointTensorImpl::make(rt, s);
   return {res[0], res[1]};
 }
 
