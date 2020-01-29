@@ -161,6 +161,7 @@ struct CAFFE2_API CheckPointPool {
   double batched_eviction_factor;
   bool has_ignore_small_tensor = false;
   long ignore_small_tensor;
+  bool has_mutation = false;
 };
 
 // The Rematerializer can be in two state: prepared, and unprepared.

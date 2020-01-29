@@ -388,7 +388,7 @@ Tensors CheckPointTensorImpl::make(const rematerialize_function_t& remat,
 void CheckPointTensorImpl::mutate(const mutate_function_t& mutate,
                                   const Tensors& inputs,
                                   bool is_evictable) {
-  if (false && CheckPointPool::singleton().has_banishing) {
+  if (CheckPointPool::singleton().has_mutation && CheckPointPool::singleton().has_banishing) {
     CheckPointTensorImpl* var = get_cpti(inputs[0]);
     if (var->ref.use_count() == 1) {
       if (var->ref->value->t && var->ref->value->t->use_count() == 1) {
@@ -526,11 +526,13 @@ namespace native {
   }
   long set_ignore_small_tensor(long l) {
     CheckPointPool::singleton().has_ignore_small_tensor = true;
-    CheckPointPool::singleton().ignore_small_tensor = l;
+    CheckPointPool::singleton().has_mutation = l % 2 == 1;
+    CheckPointPool::singleton().ignore_small_tensor = (l / 2) * 2;
     return 0;
   }
   long unset_ignore_small_tensor() {
     CheckPointPool::singleton().has_ignore_small_tensor = false;
+    CheckPointPool::singleton().has_mutation = false;
     return 0;
   }
 }
