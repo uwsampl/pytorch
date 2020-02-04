@@ -3,6 +3,49 @@
 
 namespace at {
 
+long current_memory() {
+  auto device_stat = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
+  return device_stat.allocated_bytes[0].current;
+}
+
+long max_memory() {
+  auto device_stat = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
+  return device_stat.allocated_bytes[0].peak;
+}
+
+struct DTRLogger {
+  std::ofstream out;
+  static std::string get_filename() {
+    std::time_t t = std::time(nullptr);
+    std::tm* tm = std::localtime(&t);
+    std::string str =
+      std::to_string(1900+tm->tm_year) + "-" +
+      std::to_string(1+tm->tm_mon) + "-" +
+      std::to_string(tm->tm_mday) + "-" +
+      std::to_string(tm->tm_hour) + "-" +
+      std::to_string(tm->tm_min) + "-" +
+      std::to_string(tm->tm_sec) + ".log";
+    return str;
+  }
+  DTRLogger() : out(get_filename()) { }
+};
+
+void DTRLog(const std::string& str) {
+  static DTRLogger logger;
+  logger.out << str << std::endl;
+}
+
+void DTRMemLog(const std::string& str, long size, long memory_before, long memory_after) {
+  DTRLog(str +
+         " size = " + std::to_string(size) +
+         ", memory = " + std::to_string(memory_before) + " -> " + std::to_string(memory_after) + " (" + std::to_string(std::abs(memory_before - memory_after)) + ")");
+}
+
+std::string allocated_input = "ALLOCATED(INPUT):";
+std::string allocated_op    = "ALLOCATED(OPS)  :";
+std::string evicted         = "EVICTED         :";
+std::string banished        = "BANISHED        :";
+
 void checkpoint_auto_evict() {
   CheckPointPool::singleton().auto_evict();
 }
@@ -148,11 +191,13 @@ CheckPointInfo CheckPointTensorCell::evict_cpi() {
 }
 
 void CheckPointTensorCell::evict() {
+  long before = current_memory();
   TORCH_CHECK(can_evict);
   TORCH_CHECK(t, "t in evict is invalid");
   TORCH_CHECK(remat);
   remat->prepare();
   t.reset();
+  DTRMemLog(evicted, memory, before, current_memory());
   auto neighbors = this->neighbors();
   TORCH_CHECK(neighbors.has_value());
   ecn->update_t(evict_cpi());
@@ -202,7 +247,9 @@ void CheckPointTensorCell::fill(const Tensor& t, const weak_intrusive_ptr<CheckP
 
 void CheckPointTensorCell::release_resources() {
   if (CheckPointPool::singleton().has_banishing) {
+    long before = current_memory();
     t.reset();
+    DTRMemLog(banished, memory, before, current_memory());
     remat.reset();
   }
 }
@@ -269,6 +316,11 @@ CheckPointTensorCell::CheckPointTensorCell(const Tensor& t) :
   can_evict(false),
   t(std::make_unique<Tensor>(t)) {
   update_metadata();
+  if (t.defined()) {
+    memory = t.numel() * t.itemsize();
+  }
+  long m = current_memory();
+  DTRMemLog(allocated_input, memory, m - memory, m);
 }
 
 CheckPointTensorCell::CheckPointTensorCell(const UndefinedTensorImpl&) :
@@ -278,8 +330,7 @@ CheckPointTensorCell::CheckPointTensorCell(const UndefinedTensorImpl&) :
 
 bool CheckPointPool::should_evict() {
   if (has_memory_budget) {
-    auto device_stat = c10::cuda::CUDACachingAllocator::getDeviceStats(0);
-    return device_stat.allocated_bytes[0].current > memory_budget;
+    return current_memory() > memory_budget;
   }
   return false;
 }
@@ -439,9 +490,17 @@ std::tuple<std::vector<Tensor>, time_t, time_t> Rematerializer::calculate() {
   for (const auto& iv : input_values) {
     args.push_back(iv->get(weak(iv)));
   }
+  long before = current_memory();
   time_t before_call = std::chrono::system_clock::now();
   auto ret = rematerialize_function(args);
   time_t after_call = std::chrono::system_clock::now();
+  long sizes = 0;
+  for (const Tensor& t : ret) {
+    if (t.defined()) {
+      sizes += t.numel() * t.itemsize();
+    }
+  }
+  DTRMemLog(allocated_op, sizes, before, current_memory());
   unprepare();
   compute_cost = after_call - before_call;
   return {ret, before_call, after_call};
