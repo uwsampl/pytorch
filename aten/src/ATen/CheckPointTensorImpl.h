@@ -23,6 +23,8 @@
 
 namespace at {
 
+void DTRLog(const std::string& str);
+
 template<typename T>
 struct EquivalentClass;
 template<typename T>
@@ -45,7 +47,7 @@ struct CAFFE2_API EquivalentClassNode {
     return find_root()->t;
   }
   void update_t(const T& t) {
-    this->t = t;
+    find_root()->t = t;
   }
  private:
   T t;
