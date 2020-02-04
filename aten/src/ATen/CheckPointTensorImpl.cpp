@@ -330,7 +330,7 @@ CheckPointTensorCell::CheckPointTensorCell(const UndefinedTensorImpl&) :
 
 bool CheckPointPool::should_evict() {
   if (has_memory_budget) {
-    return current_memory() > has_memory_budget;
+    return current_memory() > memory_budget;
   }
   return false;
 }
