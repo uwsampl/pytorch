@@ -158,6 +158,7 @@
   variants: function
   dispatch:
      CUDA: fused_dropout_cuda
+     CheckPoint: checkpoint__fused_dropout
   supports_named_tensor: True
 
 - func: _masked_scale(Tensor self, Tensor mask, float scale) -> Tensor
@@ -165,6 +166,7 @@
   variants: function
   dispatch:
      CUDA: masked_scale_cuda
+     CheckPoint: checkpoint__masked_scale
 
 - func: _sobol_engine_draw(Tensor quasi, int n, Tensor sobolstate, int dimension, int num_generated, ScalarType? dtype) -> (Tensor, Tensor)
 
@@ -206,11 +208,14 @@
 
 - func: feature_alpha_dropout_(Tensor(a!) self, float p, bool train) -> Tensor(a!)
 
-
 - func: abs(Tensor self) -> Tensor
   use_c10_dispatcher: full
   variants: function, method
   supports_named_tensor: True
+  dispatch:
+    CUDA: abs
+    CPU: abs
+    CheckPoint: checkpoint_abs
 
 - func: abs_(Tensor(a!) self) -> Tensor(a!)
   variants: function, method
@@ -279,6 +284,7 @@
     SparseCPU: add_sparse
     SparseCUDA: add_sparse
     MkldnnCPU: mkldnn_add
+    CheckPoint: checkpoint_add
   supports_named_tensor: True
 
 - func: add_.Tensor(Tensor(a!) self, Tensor other, *, Scalar alpha=1) -> Tensor(a!)
@@ -289,6 +295,7 @@
     SparseCPU: add_sparse_
     SparseCUDA: add_sparse_
     MkldnnCPU: mkldnn_add_
+    CheckPoint: checkpoint_add_
   supports_named_tensor: True
 
 - func: add.out(Tensor self, Tensor other, *, Scalar alpha=1, Tensor(a!) out) -> Tensor(a!)
@@ -407,6 +414,7 @@
     CPU: as_strided_tensorimpl
     CUDA: as_strided_tensorimpl
     QuantizedCPU: as_strided_qtensorimpl
+    CheckPoint: checkpoint_as_strided
   device_guard: False
   supports_named_tensor: True
 
@@ -513,6 +521,7 @@
   dispatch:
     CPU: binary_cross_entropy_cpu
     CUDA: binary_cross_entropy_cuda
+    CheckPoint: checkpoint_binary_cross_entropy
 
 - func: binary_cross_entropy.out(Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean, *, Tensor(a!) out) -> Tensor(a!)
   python_module: nn
@@ -520,6 +529,7 @@
   dispatch:
     CPU: binary_cross_entropy_out_cpu
     CUDA: binary_cross_entropy_out_cuda
+    CheckPoint: checkpoint_binary_cross_entropy_out
 
 - func: binary_cross_entropy_backward(Tensor grad_output, Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean) -> Tensor
   python_module: nn
@@ -527,6 +537,7 @@
   dispatch:
     CPU: binary_cross_entropy_backward_cpu
     CUDA: binary_cross_entropy_backward_cuda
+    CheckPoint: checkpoint_binary_cross_entropy_backward
 
 - func: binary_cross_entropy_backward.grad_input(Tensor grad_output, Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
@@ -534,6 +545,7 @@
   dispatch:
     CPU: binary_cross_entropy_backward_out_cpu
     CUDA: binary_cross_entropy_backward_out_cuda
+    CheckPoint: checkpoint_binary_cross_entropy_backward_out
 
 - func: binary_cross_entropy_with_logits(Tensor self, Tensor target, Tensor? weight=None, Tensor? pos_weight=None, int reduction=Mean) -> Tensor
   variants: function
@@ -641,7 +653,10 @@
   device_guard: False
 
 - func: cat(Tensor[] tensors, int dim=0) -> Tensor
+  use_c10_dispatcher: unboxed_only
   supports_named_tensor: True
+  #dispatch:
+  #  CheckPoint: dropout_cat
 
 - func: cat.out(Tensor[] tensors, int dim=0, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -739,6 +754,10 @@
 
 - func: constant_pad_nd(Tensor self, int[] pad, Scalar value=0) -> Tensor
   variants: function
+  dispatch:
+    CPU: constant_pad_nd
+    CUDA: constant_pad_nd
+    CheckPoint: checkpoint_constant_pad_nd
 
 - func: contiguous(Tensor self, *, MemoryFormat memory_format=contiguous_format) -> Tensor
   variants: method
@@ -837,11 +856,13 @@
 - func: cudnn_batch_norm(Tensor input, Tensor weight, Tensor? bias, Tensor? running_mean, Tensor? running_var, bool training, float exponential_average_factor, float epsilon) -> (Tensor, Tensor, Tensor, Tensor)
   dispatch:
     CUDA: cudnn_batch_norm
+    CheckPoint: checkpoint_cudnn_batch_norm
 
 # NB: You can only use this if you used cudnn_batch_norm training=True
 - func: cudnn_batch_norm_backward(Tensor input, Tensor grad_output, Tensor weight, Tensor? running_mean, Tensor? running_var, Tensor? save_mean, Tensor? save_var, float epsilon, Tensor reserveSpace) -> (Tensor, Tensor, Tensor)
   dispatch:
     CUDA: cudnn_batch_norm_backward
+    CheckPoint: checkpoint_cudnn_batch_norm_backward
 
 - func: cudnn_convolution.deprecated(Tensor self, Tensor weight, Tensor? bias, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
@@ -850,18 +871,22 @@
 - func: cudnn_convolution(Tensor self, Tensor weight, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
     CUDA: cudnn_convolution
+    CheckPoint: checkpoint_cudnn_convolution
 
 - func: cudnn_convolution_backward_input(int[] self_size, Tensor grad_output, Tensor weight, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
     CUDA: cudnn_convolution_backward_input
+    CheckPoint: checkpoint_cudnn_convolution_backward_input
 
 - func: cudnn_convolution_backward(Tensor self, Tensor grad_output, Tensor weight, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic, bool[2] output_mask) -> (Tensor, Tensor)
   dispatch:
     CUDA: cudnn_convolution_backward
+    CheckPoint: checkpoint_cudnn_convolution_backward
 
 - func: cudnn_convolution_backward_weight(int[] weight_size, Tensor grad_output, Tensor self, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
     CUDA: cudnn_convolution_backward_weight
+    CheckPoint: checkpoint_cudnn_convolution_backward_weight
 
 - func: cudnn_convolution_transpose.deprecated(Tensor self, Tensor weight, Tensor? bias, int[] padding, int[] output_padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
@@ -870,20 +895,24 @@
 - func: cudnn_convolution_transpose(Tensor self, Tensor weight, int[] padding, int[] output_padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
     CUDA: cudnn_convolution_transpose
+    CheckPoint: checkpoint_cudnn_convolution_transpose
 
 # NB: output_padding not strictly needed here, but it's helpful for the float
 # backwards
 - func: cudnn_convolution_transpose_backward(Tensor self, Tensor grad_output, Tensor weight, int[] padding, int[] output_padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic, bool[2] output_mask) -> (Tensor, Tensor)
   dispatch:
     CUDA: cudnn_convolution_transpose_backward
+    CheckPoint: checkpoint_cudnn_convolution_transpose_backward
 
 - func: cudnn_convolution_transpose_backward_input(Tensor grad_output, Tensor weight, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
     CUDA: cudnn_convolution_transpose_backward_input
+    CheckPoint: checkpoint_cudnn_convolution_transpose_backward_input
 
 - func: cudnn_convolution_transpose_backward_weight(int[] weight_size, Tensor grad_output, Tensor self, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic) -> Tensor
   dispatch:
     CUDA: cudnn_convolution_transpose_backward_weight
+    CheckPoint: checkpoint_cudnn_convolution_transpose_backward_weight
 
 # NB: input is special cased in a way I don't quite understand
 - func: cudnn_grid_sampler(Tensor self, Tensor grid) -> Tensor output
@@ -998,6 +1027,7 @@
     CUDA: div
     SparseCPU: div_sparse
     SparseCUDA: div_sparse
+    CheckPoint: checkpoint_div
   supports_named_tensor: True
 
 - func: div_.Tensor(Tensor(a!) self, Tensor other) -> Tensor(a!)
@@ -1007,6 +1037,7 @@
     CUDA: div_
     SparseCPU: div_sparse_
     SparseCUDA: div_sparse_
+    CheckPoint: checkpoint_div_
   supports_named_tensor: True
 
 - func: div.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -1042,9 +1073,18 @@
 
 - func: embedding(Tensor weight, Tensor indices, int padding_idx=-1, bool scale_grad_by_freq=False, bool sparse=False) -> Tensor
   use_c10_dispatcher: full
+  dispatch:
+    CPU: embedding
+    CUDA: embedding
+    CheckPoint: checkpoint_embedding
 
 - func: embedding_backward(Tensor grad, Tensor indices, int num_weights, int padding_idx, bool scale_grad_by_freq, bool sparse) -> Tensor
   use_c10_dispatcher: full
+  dispatch:
+    CPU: embedding_backward
+    CUDA: embedding_backward
+    CheckPoint: checkpoint_embedding_backward
+
 
 - func: embedding_dense_backward(Tensor grad_output, Tensor indices, int num_weights, int padding_idx, bool scale_grad_by_freq) -> Tensor
   use_c10_dispatcher: full
@@ -1260,6 +1300,10 @@
 - func: fill_.Scalar(Tensor(a!) self, Scalar value) -> Tensor(a!)
   supports_named_tensor: True
   variants: function, method
+  dispatch:
+    CPU: fill_
+    CUDA: fill_
+    CheckPoint: checkpoint_fill_
 
 - func: fill_.Tensor(Tensor(a!) self, Tensor value) -> Tensor(a!)
   supports_named_tensor: True
@@ -1509,12 +1553,17 @@
 
 - func: kl_div(Tensor self, Tensor target, int reduction=Mean) -> Tensor
   use_c10_dispatcher: full
+  dispatch:
+    CPU: kl_div
+    CUDA: kl_div
+    CheckPoint: checkpoint_kl_div
 
 - func: kl_div_backward(Tensor grad_output, Tensor self, Tensor target, int reduction=Mean) -> Tensor
   use_c10_dispatcher: full
   dispatch:
     CPU: kl_div_backward_cpu
     CUDA: kl_div_backward_cuda
+    CheckPoint: checkpoint_kl_div_backward
 
 - func: kthvalue(Tensor self, int k, int dim=-1, bool keepdim=False) -> (Tensor values, Tensor indices)
   supports_named_tensor: True
@@ -1547,6 +1596,10 @@
 
 - func: linear(Tensor input, Tensor weight, Tensor? bias=None) -> Tensor
   python_module: nn
+  dispatch:
+    CheckPoint: checkpoint_linear
+    CUDA: linear
+    CPU: linear
 
 - func: mkldnn_linear(Tensor input, Tensor weight, Tensor? bias=None) -> Tensor
   python_module: nn
@@ -1673,12 +1726,14 @@
   dispatch:
     CPU: log_softmax_cpu
     CUDA: log_softmax_cuda
+    CheckPoint: checkpoint_log_softmax
 
 - func: _log_softmax_backward_data(Tensor grad_output, Tensor output, int dim, Tensor self) -> Tensor
   use_c10_dispatcher: full
   dispatch:
     CPU: log_softmax_backward_cpu
     CUDA: log_softmax_backward_cuda
+    CheckPoint: checkpoint_log_softmax_backward
 
 - func: logsumexp(Tensor self, int[1] dim, bool keepdim=False) -> Tensor
   supports_named_tensor: True
@@ -1718,6 +1773,10 @@
 - func: max.dim(Tensor self, int dim, bool keepdim=False) -> (Tensor values, Tensor indices)
   variants: function, method
   supports_named_tensor: True
+  dispatch:
+    CPU: max
+    CUDA: max
+    CheckPoint: checkpoint_max
 
 - func: max.dim_max(Tensor self, int dim, bool keepdim=False, *, Tensor(a!) max, Tensor(b!) max_values) -> (Tensor(a!) values, Tensor(b!) indices)
   supports_named_tensor: True
@@ -1744,6 +1803,10 @@
 
 - func: max_pool2d(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False) -> Tensor
   supports_named_tensor: True
+  dispatch:
+    CheckPoint: checkpoint_max_pool2d
+    CUDA: max_pool2d
+    CPU: max_pool2d
 
 - func: mkldnn_max_pool2d(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False) -> Tensor
   requires_tensor: True
@@ -1911,6 +1974,7 @@
     CUDA: legacy::cuda::_th_mm
     SparseCPU: _sparse_mm
     SparseCUDA: _sparse_mm
+    CheckPoint: checkpoint_mm
   supports_named_tensor: True
 
 - func: mm.out(Tensor self, Tensor mat2, *, Tensor(a!) out) -> Tensor(a!)
@@ -1947,6 +2011,7 @@
     SparseCPU: mul_sparse
     SparseCUDA: mul_sparse
     MkldnnCPU: mkldnn_mul
+    CheckPoint: checkpoint_mul
   supports_named_tensor: True
 
 - func: mul_.Tensor(Tensor(a!) self, Tensor other) -> Tensor(a!)
@@ -1957,6 +2022,7 @@
     SparseCPU: mul_sparse_
     SparseCUDA: mul_sparse_
     MkldnnCPU: mkldnn_mul_
+    CheckPoint: checkpoint_mul_
   supports_named_tensor: True
 
 - func: mul.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -1972,6 +2038,10 @@
 - func: mul.Scalar(Tensor self, Scalar other) -> Tensor
   use_c10_dispatcher: full
   variants: function, method
+  dispatch:
+    CPU: mul
+    CUDA: mul
+    CheckPoint: checkpoint_mul
 
 - func: mul_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)
   variants: method
@@ -2016,6 +2086,7 @@
     CPU: batch_norm_cpu
     CUDA: batch_norm_cuda
     MkldnnCPU: mkldnn_batch_norm
+    CheckPoint: checkpoint_native_batch_norm
 
 - func: native_batch_norm.out(Tensor input, Tensor? weight, Tensor? bias, Tensor? running_mean, Tensor? running_var, bool training, float momentum, float eps, *, Tensor(a!) out, Tensor(b!) save_mean, Tensor(c!) save_invstd) -> (Tensor(a!), Tensor(b!), Tensor(c!))
   dispatch:
@@ -2046,6 +2117,7 @@
   dispatch:
     CPU: batch_norm_backward_cpu
     CUDA: batch_norm_backward_cuda
+    CheckPoint: checkpoint_native_batch_norm_backward
 
 - func: batch_norm_backward_reduce(Tensor grad_out, Tensor input, Tensor mean, Tensor invstd, Tensor? weight, bool input_g, bool weight_g, bool bias_g) -> (Tensor, Tensor, Tensor, Tensor)
   dispatch:
@@ -2084,6 +2156,12 @@
 
 - func: ones_like(Tensor self, *, MemoryFormat? memory_format=None) -> Tensor
   supports_named_tensor: True
+
+- func: like_ones(Tensor self) -> Tensor
+  dispatch:
+    CUDA: like_ones
+    CPU: like_ones
+    CheckPoint: checkpoint_like_ones
 
 - func: ones_like.dtype(Tensor self, *, ScalarType dtype, Layout layout, Device device, bool pin_memory=False, MemoryFormat? memory_format=None) -> Tensor
   supports_named_tensor: True
@@ -2246,6 +2324,10 @@
   use_c10_dispatcher: full
   supports_named_tensor: True
   variants: function, method
+  dispatch:
+    CPU: neg
+    CUDA: neg
+    CheckPoint: checkpoint_neg
 
 - func: neg_(Tensor(a!) self) -> Tensor(a!)
   supports_named_tensor: True
@@ -2259,6 +2341,17 @@
 
 - func: repeat(Tensor self, int[] repeats) -> Tensor
   variants: method  # This is method-only to match the previous tensor API. In the future we could make this a function too.
+  dispatch:
+    CPU: repeat
+    CUDA: repeat
+    CheckPoint: checkpoint_repeat
+
+#- func: repeat_backward(Tensor self, int dim, int[] repeats) -> Tensor
+#  variants: function
+#  dispatch:
+#    CPU: repeat_backward
+#    CUDA: repeat_backward
+#    CheckPoint: checkpoint_repeat_backward
 
 - func: repeat_interleave.Tensor(Tensor repeats) -> Tensor
   use_c10_dispatcher: full
@@ -2318,6 +2411,7 @@
     CUDA: relu
     MkldnnCPU: mkldnn_relu
     QuantizedCPU: quantized_relu
+    CheckPoint: checkpoint_relu
   supports_named_tensor: True
 
 - func: relu_(Tensor(a!) self) -> Tensor(a!)
@@ -2328,6 +2422,7 @@
     CUDA: relu_
     MkldnnCPU: mkldnn_relu_
     QuantizedCPU: quantized_relu_
+    CheckPoint: checkpoint_relu_
 
 - func: prelu(Tensor self, Tensor weight) -> Tensor
   use_c10_dispatcher: full
@@ -2335,12 +2430,14 @@
   dispatch:
     CPU: prelu_cpu
     CUDA: prelu_cuda
+    CheckPoint: checkpoint_prelu
 
 - func: prelu_backward(Tensor grad_output, Tensor self, Tensor weight) -> (Tensor, Tensor)
   variants: function, method
   dispatch:
     CPU: prelu_backward_cpu
     CUDA: prelu_backward_cuda
+    CheckPoint: checkpoint_prelu_backward
 
 - func: gelu(Tensor self) -> Tensor
   use_c10_dispatcher: full
@@ -2348,6 +2445,7 @@
   dispatch:
     CPU: gelu_cpu
     CUDA: gelu_cuda
+    CheckPoint: checkpoint_gelu
 
 - func: gelu_backward(Tensor grad, Tensor self) -> Tensor
   use_c10_dispatcher: full
@@ -2355,6 +2453,7 @@
   dispatch:
     CPU: gelu_backward_cpu
     CUDA: gelu_backward_cuda
+    CheckPoint: checkpoint_gelu_backward
 
 - func: hardshrink(Tensor self, Scalar lambd=0.5) -> Tensor
   use_c10_dispatcher: full
@@ -2388,6 +2487,18 @@
   variants: function, method
   device_guard: False
   supports_named_tensor: True
+  dispatch:
+    CPU: select
+    CUDA: select
+    CheckPoint: checkpoint_select
+
+- func: select_backward(Tensor grad, int[] sizes, int dim, int index) -> Tensor
+  variants: function
+  device_guard: False
+  dispatch:
+    CPU: select_backward
+    CUDA: select_backward
+    CheckPoint: checkpoint_select_backward
 
 - func: selu(Tensor self) -> Tensor
   use_c10_dispatcher: full
@@ -2399,7 +2510,6 @@
 
 - func: celu_(Tensor(a!) self, Scalar alpha=1.0) -> Tensor(a!)
 
-
 - func: sigmoid(Tensor self) -> Tensor
   use_c10_dispatcher: full
   supports_named_tensor: True
@@ -2409,6 +2519,7 @@
     CUDA: sigmoid
     QuantizedCPU: quantized_sigmoid
     MkldnnCPU: mkldnn_sigmoid
+    CheckPoint: checkpoint_sigmoid
 
 - func: sigmoid_(Tensor(a!) self) -> Tensor(a!)
   supports_named_tensor: True
@@ -2488,6 +2599,18 @@
   variants: function, method
   device_guard: False
   supports_named_tensor: True
+  dispatch:
+    CPU: slice
+    CUDA: slice
+    CheckPoint: checkpoint_slice
+
+- func: slice_backward(Tensor grad, int[] input_sizes, int dim, int start, int end, int step) -> Tensor
+  variants: function, method
+  device_guard: False
+  dispatch:
+    CPU: slice_backward
+    CUDA: slice_backward
+    CheckPoint: checkpoint_slice_backward
 
 - func: slogdet(Tensor self) -> (Tensor sign, Tensor logabsdet)
   variants: function, method
@@ -2511,12 +2634,14 @@
     CPU: softmax_cpu
     CUDA: softmax_cuda
     MkldnnCPU: mkldnn_softmax
+    CheckPoint: checkpoint_softmax
 
 - func: _softmax_backward_data(Tensor grad_output, Tensor output, int dim, Tensor self) -> Tensor
   use_c10_dispatcher: full
   dispatch:
     CPU: softmax_backward_cpu
     CUDA: softmax_backward_cuda
+    CheckPoint: checkpoint_softmax_backward
 
 - func: split.Tensor(Tensor(a) self, int split_size, int dim=0) -> Tensor(a)[]
   variants: function, method
@@ -2546,14 +2671,26 @@
 - func: squeeze_(Tensor(a!) self) -> Tensor(a!)
   variants: method
   device_guard: False
+  dispatch:
+    CPU: squeeze_
+    CUDA: squeeze_
+    CheckPoint: checkpoint_squeeze_
 
 - func: squeeze_.dim(Tensor(a!) self, int dim) -> Tensor(a!)
   variants: method
   device_guard: False
+  dispatch:
+    CPU: squeeze_
+    CUDA: squeeze_
+    CheckPoint: checkpoint_squeeze_
 
 - func: squeeze_.dimname(Tensor(a!) self, Dimname dim) -> Tensor(a!)
   variants: method
   device_guard: False
+  dispatch:
+    CPU: squeeze_
+    CUDA: squeeze_
+    CheckPoint: checkpoint_squeeze_
 
 - func: sspaddmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor
   use_c10_dispatcher: full
@@ -2591,10 +2728,18 @@
 - func: sum(Tensor self, *, ScalarType? dtype=None) -> Tensor
   variants: function, method
   supports_named_tensor: True
+  dispatch:
+    CPU: sum
+    CUDA: sum
+    CheckPoint: checkpoint_sum
 
 - func: sum.dim_IntList(Tensor self, int[1] dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
   variants: function, method
   supports_named_tensor: True
+  dispatch:
+    CPU: sum
+    CUDA: sum
+    CheckPoint: checkpoint_sum
 
 - func: sum.dim_DimnameList(Tensor self, Dimname[1] dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
   variants: function, method
@@ -2716,6 +2861,7 @@
     CPU: tanh
     CUDA: tanh
     QuantizedCPU: quantized_tanh
+    CheckPoint: checkpoint_tanh
 
 - func: tanh_(Tensor(a!) self) -> Tensor(a!)
   supports_named_tensor: True
@@ -2759,18 +2905,29 @@
   use_c10_dispatcher: full
   variants: function
   dispatch:
-    CPU: threshold_backward
     CUDA: threshold_backward_cuda
+    CPU: threshold_backward
+    CheckPoint: checkpoint_threshold_backward
 
 - func: transpose.int(Tensor(a) self, int dim0, int dim1) -> Tensor(a)
+  use_c10_dispatcher: full
   variants: function, method
   device_guard: False
   supports_named_tensor: True
+  dispatch:
+    CheckPoint: checkpoint_transpose
+    CPU: transpose
+    CUDA: transpose
 
 - func: transpose.Dimname(Tensor(a) self, Dimname dim0, Dimname dim1) -> Tensor(a)
+  use_c10_dispatcher: unboxed_only
   variants: function, method
   device_guard: False
   supports_named_tensor: True
+  dispatch:
+    CheckPoint: checkpoint_transpose
+    CPU: transpose
+    CUDA: transpose
 
 - func: _mkldnn_transpose(Tensor self, int dim0, int dim1) -> Tensor
   use_c10_dispatcher: full
@@ -2941,6 +3098,7 @@
   dispatch:
     CPU: _s_where_cpu
     CUDA: _s_where_cuda
+    CheckPoint: checkpoint__s_where
 
 - func: norm_except_dim(Tensor v, int pow=2, int dim=0) -> Tensor
   variants: function
@@ -2973,6 +3131,12 @@
 
 - func: zeros_like(Tensor self, *, MemoryFormat? memory_format=None) -> Tensor
   supports_named_tensor: True
+
+- func: like_zeros(Tensor self) -> Tensor
+  dispatch:
+    CUDA: like_zeros
+    CPU: like_zeros
+    CheckPoint: checkpoint_like_zeros
 
 - func: zeros_like.dtype(Tensor self, *, ScalarType dtype, Layout layout, Device device, bool pin_memory=False, MemoryFormat? memory_format=None) -> Tensor
   supports_named_tensor: True
@@ -3090,6 +3254,7 @@
     SparseCUDA: clone_sparse
     MkldnnCPU: mkldnn_clone
     QuantizedCPU: quantized_clone
+    CheckPoint: checkpoint_clone
   supports_named_tensor: True
 
 - func: resize_as_(Tensor(a!) self, Tensor the_template, *, MemoryFormat? memory_format=None) -> Tensor(a!)
@@ -3114,6 +3279,7 @@
     CUDA: pow
     SparseCPU: pow_sparse_scalar
     SparseCUDA: pow_sparse_scalar
+    CheckPoint: checkpoint_pow
 
 - func: zero_(Tensor(a!) self) -> Tensor(a!)
   supports_named_tensor: True
@@ -3124,6 +3290,7 @@
     SparseCPU: zero_sparse_
     SparseCUDA: zero_sparse_
     MkldnnCPU: mkldnn_zero_
+    CheckPoint: checkpoint_zero_
 
 - func: sub.out(Tensor self, Tensor other, *, Scalar alpha=1, Tensor(a!) out) -> Tensor(a!)
   dispatch:
@@ -3141,6 +3308,7 @@
     CUDA: sub
     SparseCPU: sub_sparse
     SparseCUDA: sub_sparse
+    CheckPoint: checkpoint_sub
   supports_named_tensor: True
 
 - func: sub_.Tensor(Tensor(a!) self, Tensor other, *, Scalar alpha=1) -> Tensor(a!)
@@ -3195,6 +3363,7 @@
     CUDA: legacy::cuda::_th_addmm
     SparseCPU: addmm_sparse_dense_cpu
     SparseCUDA: addmm_sparse_dense_cuda
+    CheckPoint: checkpoint_addmm
   supports_named_tensor: True
 
 - func: addmm_(Tensor(a!) self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor(a!)
@@ -3570,6 +3739,15 @@
   dispatch:
     QuantizedCPU: dequantize_quant
 
+- func: checkpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: is_checkpoint(Tensor self) -> bool
+  variants: method
+
+- func: decheckpoint(Tensor self) -> Tensor
+  variants: method
+
 - func: q_scale(Tensor self) -> float
   use_c10_dispatcher: full
   variants: function, method
@@ -3702,6 +3880,7 @@
   dispatch:
     CPU: _local_scalar_dense_cpu
     CUDA: _local_scalar_dense_cuda
+    CheckPoint: checkpoint_local_scalar_dense
   variants: function
   supports_named_tensor: True
 
@@ -3709,20 +3888,24 @@
 - func: _thnn_fused_lstm_cell(Tensor input_gates, Tensor hidden_gates, Tensor cx, Tensor? input_bias=None, Tensor? hidden_bias=None) -> (Tensor, Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_lstm_cell_cuda
+    CheckPoint: checkpoint__thnn_fused_lstm_cell
 
 - func: _thnn_fused_lstm_cell_backward(Tensor? grad_hy, Tensor? grad_cy, Tensor cx, Tensor cy, Tensor workspace, bool has_bias) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_lstm_cell_backward_cuda
+    CheckPoint: checkpoint__thnn_fused_lstm_cell_backward
 
 - func: _thnn_differentiable_lstm_cell_backward(Tensor? grad_hy, Tensor? grad_cy, Tensor input_gates, Tensor hidden_gates, Tensor? input_bias, Tensor? hidden_bias, Tensor cx, Tensor cy) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
 
 - func: _thnn_fused_gru_cell(Tensor input_gates, Tensor hidden_gates, Tensor hx, Tensor? input_bias=None, Tensor? hidden_bias=None) -> (Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_gru_cell_cuda
+    CheckPoint: checkpoint__thnn_fused_gru_cell
 
 - func: _thnn_fused_gru_cell_backward(Tensor grad_hy, Tensor workspace, bool has_bias) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_gru_cell_backward_cuda
+    CheckPoint: checkpoint__thnn_fused_gru_cell_backward
 
 - func: _thnn_differentiable_gru_cell_backward(Tensor grad_hy, Tensor input_gates, Tensor hidden_gates, Tensor hx, Tensor? input_bias, Tensor? hidden_bias) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
 
@@ -3866,6 +4049,7 @@
     CUDA: view
     MkldnnCPU: mkldnn_view
     QuantizedCPU: view
+    CheckPoint: checkpoint_view
 
 - func: put_(Tensor(a!) self, Tensor index, Tensor source, bool accumulate=False) -> Tensor(a!)
   variants: method
@@ -4397,6 +4581,7 @@
     CPU: ne
     CUDA: ne
     QuantizedCPU: ne_quantized_cpu
+    CheckPoint: checkpoint_ne
 
 - func: ne.Tensor_out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4413,6 +4598,7 @@
     CPU: ne
     CUDA: ne
     QuantizedCPU: ne_quantized_cpu
+    CheckPoint: checkpoint_ne
 
 - func: eq.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4445,6 +4631,7 @@
     CPU: eq
     CUDA: eq
     QuantizedCPU: eq_quantized_cpu
+    CheckPoint: checkpoint_eq
 
 - func: ge.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4477,6 +4664,7 @@
     CPU: ge
     CUDA: ge
     QuantizedCPU: ge_quantized_cpu
+    CheckPoint: checkpoint_ge
 
 - func: le.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4509,6 +4697,7 @@
     CPU: le
     CUDA: le
     QuantizedCPU: le_quantized_cpu
+    CheckPoint: checkpoint_le
 
 - func: gt.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4541,6 +4730,7 @@
     CPU: gt
     CUDA: gt
     QuantizedCPU: gt_quantized_cpu
+    CheckPoint: checkpoint_gt
 
 - func: lt.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4573,6 +4763,7 @@
     CPU: lt
     CUDA: lt
     QuantizedCPU: lt_quantized_cpu
+    CheckPoint: checkpoint_lt
 
 - func: take.out(Tensor self, Tensor index, *, Tensor(a!) out) -> Tensor(a!)
   dispatch:
@@ -4599,6 +4790,7 @@
     CUDA: legacy::cuda::_th_index_select
     SparseCPU: index_select_sparse
     SparseCUDA: index_select_sparse
+    CheckPoint: checkpoint_index_select
 
 - func: index_select.dimname_out(Tensor self, Dimname dim, Tensor index, *, Tensor(a!) out) -> Tensor(a!)
 
@@ -4917,6 +5109,10 @@
 - func: sign(Tensor self) -> Tensor
   variants: function, method
   supports_named_tensor: True
+  dispatch:
+    CPU: sign
+    CUDA: sign
+    CheckPoint: checkpoint_sign
 
 - func: sign_(Tensor(a!) self) -> Tensor(a!)
   variants: method
@@ -4927,6 +5123,7 @@
   dispatch:
     CPU: sign_out
     CUDA: sign_out
+    CheckPoint: checkpoint_sign_out
 
 - func: dist(Tensor self, Tensor other, Scalar p=2) -> Tensor
   use_c10_dispatcher: full
@@ -5032,6 +5229,10 @@
 - func: min.other(Tensor self, Tensor other) -> Tensor
   use_c10_dispatcher: full
   variants: method, function
+  dispatch:
+    CPU: legacy::cpu::_th_min
+    CUDA: legacy::cuda::_th_min
+    CheckPoint: checkpoint_min
 
 - func: min(Tensor self) -> Tensor
   use_c10_dispatcher: full
@@ -5040,6 +5241,7 @@
     CPU: legacy::cpu::_th_min
     CUDA: legacy::cuda::_th_min
     QuantizedCPU: min_quant
+    CheckPoint: checkpoint_min
   supports_named_tensor: True
 
 - func: max.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -5047,6 +5249,10 @@
 - func: max.other(Tensor self, Tensor other) -> Tensor
   use_c10_dispatcher: full
   variants: method, function
+  dispatch:
+    CPU: legacy::cpu::_th_max
+    CUDA: legacy::cuda::_th_max
+    CheckPoint: checkpoint_max
 
 - func: max(Tensor self) -> Tensor
   use_c10_dispatcher: full
@@ -5055,6 +5261,7 @@
     CPU: legacy::cpu::_th_max
     CUDA: legacy::cuda::_th_max
     QuantizedCPU: max_quant
+    CheckPoint: checkpoint_max
   supports_named_tensor: True
 
 - func: median(Tensor self) -> Tensor
@@ -5142,6 +5349,7 @@
     CPU: legacy::cpu::_th_equal
     CUDA: legacy::cuda::_th_equal
     QuantizedCPU: quantized_equal
+    CheckPoint: checkpoint_equal
   supports_named_tensor: True
 
 - func: pow.Tensor_Tensor_out(Tensor self, Tensor exponent, *, Tensor(a!) out) -> Tensor(a!)
@@ -5271,12 +5479,14 @@
     CPU: legacy::cpu::_th_cat
     CUDA: legacy::cuda::_th_cat
     QuantizedCPU: quantized_cat
+    CheckPoint: checkpoint__cat
 
 - func: _cat.out(Tensor[] tensors, int dim=0, *, Tensor(a!) out) -> Tensor(a!)
   dispatch:
     CPU: legacy::cpu::_th_cat_out
     CUDA: legacy::cuda::_th_cat_out
     QuantizedCPU: quantized_cat_out
+    CheckPoint: checkpoint__cat_out
 
 - func: _mode(Tensor self, int dim=-1, bool keepdim=False) -> (Tensor, Tensor)
   dispatch:
@@ -5292,6 +5502,7 @@
   dispatch:
     CPU: legacy::cpu::_th_max
     CUDA: legacy::cuda::_th_max
+    CheckPoint: checkpoint__max
 
 - func: _max.max(Tensor self, int dim, bool keepdim=False, *, Tensor(a!) max, Tensor(b!) max_indices) -> (Tensor(a!), Tensor(b!))
   dispatch:
@@ -5302,6 +5513,7 @@
   dispatch:
     CPU: legacy::cpu::_th_min
     CUDA: legacy::cuda::_th_min
+    CheckPoint: checkpoint_min
 
 - func: _min.min(Tensor self, int dim, bool keepdim=False, *, Tensor(a!) min, Tensor(b!) min_indices) -> (Tensor(a!), Tensor(b!))
   dispatch:
@@ -5336,16 +5548,25 @@
 - func: l1_loss(Tensor self, Tensor target, int reduction=Mean) -> Tensor
   use_c10_dispatcher: full
   python_module: nn
+  dispatch:
+    CPU: l1_loss
+    CUDA: l1_loss
+    CheckPoint: checkpoint_l1_loss
 
 - func: l1_loss_backward.grad_input(Tensor grad_output, Tensor self, Tensor target, int reduction, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
   dispatch:
     CPU: l1_loss_backward_out
     CUDA: l1_loss_backward_out
+    CheckPoint: checkpoint_l1_loss_backward_out
 
 - func: l1_loss_backward(Tensor grad_output, Tensor self, Tensor target, int reduction) -> Tensor
   use_c10_dispatcher: full
   python_module: nn
+  dispatch:
+    CPU: l1_loss_backward
+    CUDA: l1_loss_backward
+    CheckPoint: checkpoint_l1_loss_backward
 
 - func: multi_margin_loss.out(Tensor self, Tensor target, Scalar p=1, Scalar margin=1, Tensor? weight=None, int reduction=Mean, *, Tensor(a!) out) -> Tensor(a!)
   python_module: nn
@@ -5420,6 +5641,7 @@
   dispatch:
     CPU: nll_loss_forward_cpu
     CUDA: legacy::cuda::_thnn_nll_loss_forward
+    CheckPoint: checkpoint_nll_loss_forward
 
 - func: nll_loss_backward.grad_input(Tensor grad_output, Tensor self, Tensor target, Tensor? weight, int reduction, int ignore_index, Tensor total_weight, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
@@ -5432,6 +5654,7 @@
   dispatch:
     CPU: nll_loss_backward_cpu
     CUDA: legacy::cuda::_thnn_nll_loss_backward
+    CheckPoint: checkpoint_nll_loss_backward
 
 - func: nll_loss2d.out(Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean, int ignore_index=-100, *, Tensor(a!) out) -> Tensor(a!)
   python_module: nn
@@ -5798,18 +6021,21 @@
     CUDA: avg_pool2d_cuda
     MkldnnCPU: mkldnn_avg_pool2d
     QuantizedCPU: quantized_avg_pool2d
+    CheckPoint: checkpoint_avg_pool2d
 
 - func: avg_pool2d_backward.grad_input(Tensor grad_output, Tensor self, int[2] kernel_size, int[2] stride, int[2] padding, bool ceil_mode, bool count_include_pad, int? divisor_override, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
   dispatch:
     CPU: avg_pool2d_backward_out_cpu
     CUDA: avg_pool2d_backward_out_cuda
+    CheckPoint: checkpoint_avg_pool2d_backward_out
 
 - func: avg_pool2d_backward(Tensor grad_output, Tensor self, int[2] kernel_size, int[2] stride, int[2] padding, bool ceil_mode, bool count_include_pad, int? divisor_override) -> Tensor
   python_module: nn
   dispatch:
     CPU: avg_pool2d_backward_cpu
     CUDA: avg_pool2d_backward_cuda
+    CheckPoint: checkpoint_avg_pool2d_backward
 
 - func: avg_pool3d.out(Tensor self, int[3] kernel_size, int[3] stride=[], int[3] padding=0, bool ceil_mode=False, bool count_include_pad=True, int? divisor_override=None, *, Tensor(a!) out) -> Tensor(a!)
   python_module: nn
@@ -6288,6 +6514,10 @@
 - func: sigmoid_backward(Tensor grad_output, Tensor output) -> Tensor
   use_c10_dispatcher: full
   python_module: nn
+  dispatch:
+    CPU: sigmoid_backward
+    CUDA: sigmoid_backward
+    CheckPoint: checkpoint_sigmoid_backward
 
 - func: tanh_backward.grad_input(Tensor grad_output, Tensor output, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
@@ -6298,6 +6528,10 @@
 - func: tanh_backward(Tensor grad_output, Tensor output) -> Tensor
   use_c10_dispatcher: full
   python_module: nn
+  dispatch:
+    CPU: tanh_backward
+    CUDA: tanh_backward
+    CheckPoint: checkpoint_tanh_backward
 
 # What's a thnn_conv_ versus a slow_conv_?
 #
@@ -6382,6 +6616,7 @@
   dispatch:
     CPU: slow_conv2d_forward_cpu
     CUDA: legacy::cuda::_thnn_conv2d_forward
+    CheckPoint: checkpoint_thnn_conv2d_forward
 
 - func: thnn_conv2d_backward.grad_input(Tensor grad_output, Tensor self, Tensor weight, int[2] kernel_size, int[2] stride, int[2] padding, Tensor finput, Tensor fgrad_input, *, Tensor(a!)? grad_input, Tensor(b!)? grad_weight, Tensor(c!)? grad_bias) -> (Tensor(a!), Tensor(b!), Tensor(c!))
   python_module: nn
@@ -6394,6 +6629,7 @@
   dispatch:
     CPU: slow_conv2d_backward_cpu
     CUDA: legacy::cuda::_thnn_conv2d_backward
+    CheckPoint: checkpoint_thnn_conv2d_backward
 
 - func: thnn_conv_depthwise2d.out(Tensor self, Tensor weight, int[2] kernel_size, Tensor? bias=None, int[2] stride=1, int[2] padding=0, int[2] dilation=1, *, Tensor(a!) out) -> Tensor(a!)
   python_module: nn
@@ -6530,3 +6766,15 @@
   variants: function
   device_guard: False
   supports_named_tensor: True
+
+- func: clear_checkpointpool() -> int
+- func: set_memory_budget(int i) -> int
+- func: unset_memory_budget() -> int
+- func: set_banishing() -> int
+- func: unset_banishing() -> int
+- func: set_mutation() -> int
+- func: unset_mutation() -> int
+- func: set_batched_eviction_factor(float f) -> int
+- func: unset_batched_eviction_factor() -> int
+- func: set_ignore_small_tensor(int i) -> int
+- func: unset_ignore_small_tensor() -> int

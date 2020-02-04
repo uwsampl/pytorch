@@ -102,8 +102,15 @@ class RNNBase(Module):
         Right now, this works only if the module is on the GPU and cuDNN is enabled.
         Otherwise, it's a no-op.
         """
+        # kludge: doesn't work with DTR for some reason
+        return
+
         # Short-circuits if _flat_weights is only partially instantiated
         if len(self._flat_weights) != len(self._flat_weights_names):
+            return
+
+        any_param = next(self.parameters()).data
+        if not any_param.is_cuda or not torch.backends.cudnn.is_acceptable(any_param):
             return
 
         # Short-circuits if any tensor in self._flat_weights is not acceptable to cuDNN
