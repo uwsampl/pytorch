@@ -875,17 +875,14 @@ struct Ref {
 };
 
 std::tuple<Tensor, Tensor> checkpoint__fused_dropout(const Tensor & self, double p, Generator* g) {
-  Ref<std::shared_ptr<Generator>> gen;
+  // TODO: Figure out how to properly duplicate the generator
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      Generator* cur = gen.t ? gen.t.get() : g;
-      auto newG = cur->clone();
-      auto res = at::_fused_dropout(vec[0], p, cur);
-      gen.t = newG;
-      return {std::get<0>(res), std::get<1>(res)};
+    auto res = at::_fused_dropout(vec[0], p);
+    return {std::get<0>(res), std::get<1>(res)};
   };
   strongs s = {from_tensor(self)};
-  auto res = CheckPointTensorImpl::make(rt, s);
+  auto res = CheckPointTensorImpl::make(rt, s, false);
   return {res[0], res[1]};
 }
 
