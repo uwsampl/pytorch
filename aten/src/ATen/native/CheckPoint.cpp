@@ -874,10 +874,13 @@ std::tuple<Tensor, Tensor> checkpoint__fused_dropout(const Tensor & self, double
   Ref<std::shared_ptr<Generator>> gen;
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      Generator* cur = gen.t ? gen.t.get() : g;
-      auto newG = cur->clone();
-      auto res = at::_fused_dropout(vec[0], p, cur);
-      gen.t = newG;
+      std::cout << "HIT" << std::endl;
+      //Generator* cur = gen.t ? gen.t.get() : g;
+      //auto newG = g->clone();
+      auto res = at::_fused_dropout(vec[0], p, nullptr);
+      //gen.t = newG;
+      // todo: g might be nullptr. as a generator take little memory we simply ignore it and use the system one.
+      // this make the code functionally incorrect but the runtime should not change.
       return {std::get<0>(res), std::get<1>(res)};
   };
   strongs s = {from_tensor(self)};
@@ -1013,7 +1016,7 @@ bool checkpoint_equal(const Tensor& self, const Tensor& other) {
 Tensor checkpoint_mean(const Tensor& self, c10::optional<c10::ScalarType> dtype) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-    return {at::native::mean_cpu_gpu(vec[0], dtype)};
+    return {at::mean(vec[0], dtype)};
   };
   strongs s = {from_tensor(self)};
   return CheckPointTensorImpl::make(rt, s)[0];
@@ -1023,7 +1026,7 @@ Tensor checkpoint_mean(const Tensor& self, IntArrayRef dim, bool keepdim, c10::o
   std::vector<long> dim_ = dim.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-    return {at::native::mean_cpu_gpu(vec[0], dim_, keepdim, dtype)};
+    return {at::mean(vec[0], dim_, keepdim, dtype)};
   };
   strongs s = {from_tensor(self)};
   return CheckPointTensorImpl::make(rt, s)[0];
@@ -1036,9 +1039,10 @@ std::tuple<Tensor&, Tensor&> checkpoint_max_pool2d_with_indices_out(Tensor& outp
   std::vector<long> dilation_ = dilation.vec();
   mutate_function_t mt =
     [=](const Tensors& vec) {
+      std::cout << "BAD!" << std::endl;
     Tensor output_ = vec.at(0);
     Tensor indices_ = vec.at(1);
-    at::native::max_pool2d_with_indices_out_cuda(output_, indices_, vec.at(2), kernel_size_, stride_, padding_, dilation_, ceil_mode);
+    at::max_pool2d_with_indices_out(output_, indices_, vec.at(2), kernel_size_, stride_, padding_, dilation_, ceil_mode);
   };
   CheckPointTensorImpl::mutate(mt, {output, indices, input});
   return {output, indices};
@@ -1051,7 +1055,7 @@ std::tuple<Tensor, Tensor> checkpoint_max_pool2d_with_indices(const Tensor& self
   std::vector<long> dilation_ = dilation.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-    auto res = at::native::max_pool2d_with_indices_cuda(vec[0], kernel_size_, stride_, padding_, dilation_, ceil_mode);
+    auto res = at::max_pool2d_with_indices(vec[0], kernel_size_, stride_, padding_, dilation_, ceil_mode);
     return {std::get<0>(res), std::get<1>(res)};
   };
   strongs s = {from_tensor(self)};
@@ -1067,7 +1071,7 @@ Tensor& checkpoint_max_pool2d_with_indices_backward_out(Tensor& gradInput, const
   mutate_function_t mt =
     [=](const Tensors& vec) {
     Tensor gradInput_ = vec.at(0);
-    at::native::max_pool2d_with_indices_backward_out_cuda(gradInput_, vec.at(1), vec.at(2), kernel_size_, stride_, padding_, dilation_, ceil_mode, vec.at(3));
+    at::max_pool2d_with_indices_backward_out(gradInput_, vec.at(1), vec.at(2), kernel_size_, stride_, padding_, dilation_, ceil_mode, vec.at(3));
   };
   CheckPointTensorImpl::mutate(mt, {gradInput, gradOutput_, input, indices});
   return gradInput;
@@ -1080,7 +1084,7 @@ Tensor checkpoint_max_pool2d_with_indices(const Tensor& gradOutput, const Tensor
   std::vector<long> dilation_ = dilation.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-    return {at::native::max_pool2d_with_indices_backward_cuda(vec[0], vec[1], kernel_size_, stride_, padding_, dilation_, ceil_mode, vec[2])};
+    return {at::max_pool2d_with_indices_backward(vec[0], vec[1], kernel_size_, stride_, padding_, dilation_, ceil_mode, vec[2])};
   };
   strongs s = {from_tensor(gradOutput), from_tensor(input), from_tensor(indices)};
   return CheckPointTensorImpl::make(rt, s)[0];

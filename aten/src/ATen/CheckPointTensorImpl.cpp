@@ -496,6 +496,7 @@ std::tuple<std::vector<Tensor>, time_t, time_t> Rematerializer::calculate() {
   time_t after_call = std::chrono::system_clock::now();
   long sizes = 0;
   for (const Tensor& t : ret) {
+    TORCH_CHECK(! t.is_checkpoint());
     if (t.defined()) {
       sizes += t.numel() * t.itemsize();
     }
