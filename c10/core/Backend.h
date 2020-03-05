@@ -25,7 +25,57 @@ namespace c10 {
  * or "SparseCUDA"; backend in torch.backends is something like "MKL" or
  * "CUDNN".
  */
-enum class Backend { CPU, CUDA, HIP, SparseCPU, SparseCUDA, SparseHIP, MSNPU, XLA, QuantizedCPU, Undefined, MkldnnCPU, NumOptions };
+enum class Backend {
+  CPU,
+  CUDA,
+  HIP,
+  SparseCPU,
+  SparseCUDA,
+  SparseHIP,
+  MSNPU,
+  XLA,
+  QuantizedCPU,
+  ComplexCPU,
+  ComplexCUDA,
+  Undefined,
+  MkldnnCPU,
+  CheckPoint,
+  NumOptions
+};
+
+// TODO: This probably shouldn't actually be static inline
+static inline const char* toString(Backend b) {
+  switch (b) {
+  case Backend::CPU:
+    return "CPU";
+  case Backend::CUDA:
+    return "CUDA";
+  case Backend::HIP:
+    return "HIP";
+  case Backend::MSNPU:
+    return "MSNPU";
+  case Backend::XLA:
+    return "XLA";
+  case Backend::SparseCPU:
+    return "SparseCPU";
+  case Backend::SparseCUDA:
+    return "SparseCUDA";
+  case Backend::SparseHIP:
+    return "SparseHIP";
+  case Backend::MkldnnCPU:
+    return "MkldnnCPU";
+  case Backend::QuantizedCPU:
+    return "QuantizedCPU";
+  case Backend::ComplexCPU:
+    return "ComplexCPU";
+  case Backend::ComplexCUDA:
+    return "ComplexCUDA";
+  case Backend::CheckPoint:
+    return "CheckPoint";
+  default:
+    return "UNKNOWN_BACKEND";
+  }
+}
 
 static inline Backend toSparse(Backend b) {
   switch (b) {
@@ -42,7 +92,7 @@ static inline Backend toSparse(Backend b) {
     case Backend::SparseHIP:
       return Backend::SparseHIP;
     default:
-      throw std::runtime_error("Unknown backend");
+      throw std::runtime_error(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -66,8 +116,12 @@ static inline Backend toDense(Backend b) {
       return Backend::HIP;
     case Backend::QuantizedCPU:
       return Backend::QuantizedCPU;
+    case Backend::ComplexCPU:
+      return Backend::ComplexCPU;
+    case Backend::ComplexCUDA:
+      return Backend::ComplexCUDA;
     default:
-      throw std::runtime_error("Unknown backend");
+      throw std::runtime_error(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -92,8 +146,14 @@ static inline Backend dispatchKeyToBackend(DispatchKey t) {
     return Backend::MkldnnCPU;
   } else if (t == DispatchKey::QuantizedCPUTensorId) {
     return Backend::QuantizedCPU;
+  } else if (t == DispatchKey::ComplexCPUTensorId) {
+    return Backend::ComplexCPU;
+  } else if (t == DispatchKey::ComplexCUDATensorId) {
+    return Backend::ComplexCUDA;
   } else if (t == DispatchKey::Undefined) {
     return Backend::Undefined;
+  } else if (t == DispatchKey::CheckPointTensorId) {
+    return Backend::CheckPoint;
   } else {
     AT_ERROR("Unrecognized tensor type ID: ", t);
   }
@@ -121,10 +181,16 @@ static inline DispatchKey backendToDispatchKey(Backend b) {
       return DispatchKey::MkldnnCPUTensorId;
     case Backend::QuantizedCPU:
       return DispatchKey::QuantizedCPUTensorId;
+    case Backend::ComplexCPU:
+      return DispatchKey::ComplexCPUTensorId;
+    case Backend::ComplexCUDA:
+      return DispatchKey::ComplexCUDATensorId;
+    case Backend::CheckPoint:
+      return DispatchKey::CheckPointTensorId;
     case Backend::Undefined:
       return DispatchKey::Undefined;
     default:
-      throw std::runtime_error("Unknown backend");
+      throw std::runtime_error(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -148,11 +214,14 @@ static inline DeviceType backendToDeviceType(Backend b) {
       return DeviceType::HIP;
     case Backend::MkldnnCPU:
     case Backend::QuantizedCPU:
+    case Backend::ComplexCPU:
       return DeviceType::CPU;
-    case Backend::Undefined:
+    case Backend::ComplexCUDA:
+      return DeviceType::CUDA;
+  case Backend::Undefined:
       AT_ERROR("Undefined backend is not a valid device type");
     default:
-      AT_ERROR("Unknown backend");
+      AT_ERROR(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -177,10 +246,13 @@ static inline Backend backendToCPU(Backend b) {
       return Backend::MkldnnCPU;
     case Backend::QuantizedCPU:
       return Backend::QuantizedCPU;
+    case Backend::ComplexCPU:
+    case Backend::ComplexCUDA:
+      return Backend::ComplexCPU;
     case Backend::Undefined:
       return Backend::Undefined;
     default:
-      AT_ERROR("Unknown backend");
+      AT_ERROR(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -196,10 +268,13 @@ static inline Backend backendToCUDA(Backend b) {
     case Backend::SparseCUDA:
     case Backend::SparseHIP:
       return Backend::SparseCUDA;
+    case Backend::ComplexCPU:
+    case Backend::ComplexCUDA:
+      return Backend::ComplexCUDA;
     case Backend::Undefined:
       return Backend::Undefined;
     default:
-      AT_ERROR("Unknown backend");
+      AT_ERROR(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -218,35 +293,7 @@ static inline Backend backendToHIP(Backend b) {
     case Backend::Undefined:
       return Backend::Undefined;
     default:
-      AT_ERROR("Unknown backend");
-  }
-}
-
-// TODO: This probably shouldn't actually be static inline
-static inline const char* toString(Backend b) {
-  switch (b) {
-    case Backend::CPU:
-      return "CPU";
-    case Backend::CUDA:
-      return "CUDA";
-    case Backend::HIP:
-      return "HIP";
-    case Backend::MSNPU:
-      return "MSNPU";
-    case Backend::XLA:
-      return "XLA";
-    case Backend::SparseCPU:
-      return "SparseCPU";
-    case Backend::SparseCUDA:
-      return "SparseCUDA";
-    case Backend::SparseHIP:
-      return "SparseHIP";
-    case Backend::MkldnnCPU:
-      return "MkldnnCPU";
-    case Backend::QuantizedCPU:
-      return "QuantizedCPU";
-    default:
-      return "UNKNOWN_BACKEND";
+      AT_ERROR(std::string("Unknown backend: ") + toString(b));
   }
 }
 
