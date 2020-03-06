@@ -35,8 +35,6 @@ enum class Backend {
   MSNPU,
   XLA,
   QuantizedCPU,
-  ComplexCPU,
-  ComplexCUDA,
   Undefined,
   MkldnnCPU,
   CheckPoint,
@@ -66,10 +64,6 @@ static inline const char* toString(Backend b) {
     return "MkldnnCPU";
   case Backend::QuantizedCPU:
     return "QuantizedCPU";
-  case Backend::ComplexCPU:
-    return "ComplexCPU";
-  case Backend::ComplexCUDA:
-    return "ComplexCUDA";
   case Backend::CheckPoint:
     return "CheckPoint";
   default:
@@ -116,10 +110,6 @@ static inline Backend toDense(Backend b) {
       return Backend::HIP;
     case Backend::QuantizedCPU:
       return Backend::QuantizedCPU;
-    case Backend::ComplexCPU:
-      return Backend::ComplexCPU;
-    case Backend::ComplexCUDA:
-      return Backend::ComplexCUDA;
     default:
       throw std::runtime_error(std::string("Unknown backend: ") + toString(b));
   }
@@ -146,10 +136,6 @@ static inline Backend dispatchKeyToBackend(DispatchKey t) {
     return Backend::MkldnnCPU;
   } else if (t == DispatchKey::QuantizedCPUTensorId) {
     return Backend::QuantizedCPU;
-  } else if (t == DispatchKey::ComplexCPUTensorId) {
-    return Backend::ComplexCPU;
-  } else if (t == DispatchKey::ComplexCUDATensorId) {
-    return Backend::ComplexCUDA;
   } else if (t == DispatchKey::Undefined) {
     return Backend::Undefined;
   } else if (t == DispatchKey::CheckPointTensorId) {
@@ -181,10 +167,6 @@ static inline DispatchKey backendToDispatchKey(Backend b) {
       return DispatchKey::MkldnnCPUTensorId;
     case Backend::QuantizedCPU:
       return DispatchKey::QuantizedCPUTensorId;
-    case Backend::ComplexCPU:
-      return DispatchKey::ComplexCPUTensorId;
-    case Backend::ComplexCUDA:
-      return DispatchKey::ComplexCUDATensorId;
     case Backend::CheckPoint:
       return DispatchKey::CheckPointTensorId;
     case Backend::Undefined:
@@ -214,10 +196,7 @@ static inline DeviceType backendToDeviceType(Backend b) {
       return DeviceType::HIP;
     case Backend::MkldnnCPU:
     case Backend::QuantizedCPU:
-    case Backend::ComplexCPU:
       return DeviceType::CPU;
-    case Backend::ComplexCUDA:
-      return DeviceType::CUDA;
   case Backend::Undefined:
       AT_ERROR("Undefined backend is not a valid device type");
     default:
@@ -246,9 +225,6 @@ static inline Backend backendToCPU(Backend b) {
       return Backend::MkldnnCPU;
     case Backend::QuantizedCPU:
       return Backend::QuantizedCPU;
-    case Backend::ComplexCPU:
-    case Backend::ComplexCUDA:
-      return Backend::ComplexCPU;
     case Backend::Undefined:
       return Backend::Undefined;
     default:
@@ -268,9 +244,6 @@ static inline Backend backendToCUDA(Backend b) {
     case Backend::SparseCUDA:
     case Backend::SparseHIP:
       return Backend::SparseCUDA;
-    case Backend::ComplexCPU:
-    case Backend::ComplexCUDA:
-      return Backend::ComplexCUDA;
     case Backend::Undefined:
       return Backend::Undefined;
     default:
