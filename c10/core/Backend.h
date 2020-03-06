@@ -49,6 +49,7 @@ enum class Backend {
   QuantizedCPU,
   QuantizedCUDA,
   QuantizedXPU,
+  Checkpoint,
   Undefined,
   MkldnnCPU,
   MPS,
@@ -118,6 +119,8 @@ static inline Backend dispatchKeyToBackend(DispatchKey t) {
     return Backend::PrivateUse1;
   } else if (t == DispatchKey::Undefined) {
     return Backend::Undefined;
+  } else if (t == DispatchKey::Checkpoint) {
+    return Backend::Checkpoint;
   } else {
     TORCH_CHECK(false, "Unrecognized tensor type ID: ", t);
   }
@@ -171,6 +174,8 @@ static inline DispatchKey backendToDispatchKey(Backend b) {
       return DispatchKey::QuantizedCPU;
     case Backend::QuantizedCUDA:
       return DispatchKey::QuantizedCUDA;
+    case Backend::Checkpoint:
+      return DispatchKey::Checkpoint;
     case Backend::Undefined:
       return DispatchKey::Undefined;
     case Backend::MPS:
@@ -182,7 +187,7 @@ static inline DispatchKey backendToDispatchKey(Backend b) {
     case Backend::PrivateUse1:
       return DispatchKey::PrivateUse1;
     default:
-      throw std::runtime_error("Unknown backend");
+      throw std::runtime_error(std::string("Unknown backend: ") + toString(b));
   }
 }
 
@@ -307,6 +312,8 @@ static inline const char* toString(Backend b) {
       return "MTIA";
     case Backend::PrivateUse1:
       return "PrivateUseOne";
+    case Backend::Checkpoint:
+      return "Checkpoint";
     default:
       return "UNKNOWN_BACKEND";
   }

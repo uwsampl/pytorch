@@ -306,6 +306,10 @@ enum class DispatchKey : uint16_t {
   // up to the `VariableType` kernel. Thus we only add the extra dispatch
   // to view/inplace ops to minimize its perf impact to real models.
   ADInplaceOrView,
+
+  // Checkpoint must go after Autograd. This way, Autograd will hook ad outside of CheckpointTensor.
+  Checkpoint,
+
   // Note [Alias Dispatch Key : Autograd]
   // All backends are oblivious to autograd; autograd is handled as a
   // layer which happens on top of all backends. It inspects the autograd

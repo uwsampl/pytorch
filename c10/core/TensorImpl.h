@@ -1262,6 +1262,11 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
   }
 
  public:
+
+  c10::optional<c10::Device> optional_device() const {
+    return device_opt_;
+  }
+
   Layout layout() const {
     if (C10_UNLIKELY(layout_policy_)) {
       return layout_custom();
@@ -1927,6 +1932,12 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
    * compatible with SparseCUDA.
    */
   inline bool has_compatible_shallow_copy_type(DispatchKeySet from) {
+    if (key_set_ == from) {
+      return true;
+    }
+    if (key_set_.has(DispatchKey::Checkpoint) || from.has(DispatchKey::Checkpoint)) {
+      return false;
+    }
     auto is_dense = [](DispatchKeySet ts) {
       constexpr auto dense_backends = DispatchKeySet(
           {BackendComponent::CPUBit,
@@ -1947,8 +1958,7 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
       constexpr auto sparse_k = DispatchKeySet(DispatchKey::Sparse);
       return ts.has_any(sparse_k) && ts.has_any(sparse_backends);
     };
-    return (key_set_ == from) || (is_dense(key_set_) && is_dense(from)) ||
-        (is_sparse(key_set_) && is_sparse(from));
+    return (is_dense(key_set_) && is_dense(from)) || (is_sparse(key_set_) && is_sparse(from));
   }
 
  private:

@@ -99,6 +99,9 @@ const char* toString(DispatchKey t) {
     case DispatchKey::NestedTensor:
       return "NestedTensor";
 
+    case DispatchKey::Checkpoint:
+      return "Checkpoint";
+
     case DispatchKey::BackendSelect:
       return "BackendSelect";
 

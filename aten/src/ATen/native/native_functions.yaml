@@ -5,6 +5,90 @@
 # representing ScalarType's. They are now superseded by usage of
 # `aten::to()`. The ops remain here for backward compatibility purposes.
 
+- func: checkpoint(Tensor self) -> Tensor
+  variants: method
+
+# convert a tensor to a checkpoint tensor.
+# if the input is already a checkpoint tensor,
+# checkpoint will fail while try_checkpoint will
+# simply return the input.
+- func: try_checkpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: is_checkpoint(Tensor self) -> bool
+  variants: method
+
+# convert checkpointed tensor into normal tensor.
+# uncheckpoint assume the input is checkpointed and will fail otherwise.
+# decheckpoint return the input if it is not checkpointed.
+- func: uncheckpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: decheckpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: pin(Tensor(a!) self) -> ()
+  variants: method
+
+- func: new_log(str logname) -> ()
+  variants: function
+
+- func: annotate_log(str logname) -> ()
+  variants: function
+
+- func: toggle_log(bool use_log) -> ()
+  variants: function
+
+- func: clear_checkpointpool() -> ()
+  variants: function
+
+- func: set_memory_budget(int budget) -> ()
+  variants: function
+
+- func: unset_memory_budget() -> ()
+  variants: function
+
+- func: toggle_sampling(bool sample) -> ()
+  variants: function
+
+- func: toggle_ignore_small_tensors(bool ignore) -> ()
+  variants: function
+
+- func: reset_profile() -> ()
+  variants: function
+
+# the compute time of kernel, ignoring remat
+- func: base_compute_time() -> int
+  variants: function
+
+# the compute time of remat kernel
+- func: remat_compute_time() -> int
+  variants: function
+
+# base_compute_time() + remat_compute_time()
+- func: compute_time() -> int
+  variants: function
+
+# total time spent in searching.
+- func: search_time() -> int
+  variants: function
+
+# total time spent in evaluating cost
+- func: cost_time() -> int
+  variants: function
+
+# time spent looping over tensors. search_time() - cost_time()
+- func: loop_time() -> int
+  variants: function
+
+- func: toggle_profile(bool profile) -> ()
+  variants: function
+
+# Temporary type cast operators. These are needed to trace type-casts now since
+# Type's are not supported in the IR. Instead, we call down to these
+# specialized operators for each datatype.
+# TODO: remove when we have Type support in the IR
+
 # DEPRECATED. DO NOT USE
 - func: _cast_Byte(Tensor self, bool non_blocking=False) -> Tensor
   variants: function
@@ -180,6 +264,7 @@
   device_check: NoCheck  # Tensor arguments allowed to be on different devices, see also _cudnn_ctc_loss
   dispatch:
     CUDA: _use_cudnn_ctc_loss
+    Checkpoint: checkpoint__use_cudnn_ctc_loss
 
 - func: _use_cudnn_ctc_loss.Tensor(Tensor log_probs, Tensor targets, Tensor input_lengths, Tensor target_lengths, int blank) -> bool
   device_check: NoCheck  # Tensor arguments allowed to be on different devices, see also _cudnn_ctc_loss
@@ -190,6 +275,7 @@
   device_check: NoCheck  # log_probs is expected to be on CUDA while targets is expected to be on CPU
   dispatch:
     CUDA: _cudnn_ctc_loss
+    Checkpoint: checkpoint__cudnn_ctc_loss
   autogen: _cudnn_ctc_loss.out
 
 - func: _cudnn_ctc_loss.Tensor(Tensor log_probs, Tensor targets, Tensor input_lengths, Tensor target_lengths, int blank, bool deterministic, bool zero_infinity) -> (Tensor, Tensor)
@@ -228,14 +314,16 @@
 - func: _fused_dropout(Tensor self, float p, Generator? generator=None) -> (Tensor, Tensor)
   variants: function
   dispatch:
-    CUDA: fused_dropout_cuda
+     CUDA: fused_dropout_cuda
+     Checkpoint: checkpoint__fused_dropout
   tags: nondeterministic_seeded
   autogen: _fused_dropout.out
 
 - func: _masked_scale(Tensor self, Tensor mask, float scale) -> Tensor
   variants: function
   dispatch:
-    CUDA: masked_scale_cuda
+     CUDA: masked_scale_cuda
+     Checkpoint: checkpoint__masked_scale
   autogen: _masked_scale.out
 
 - func: native_dropout(Tensor input, float p, bool? train) -> (Tensor, Tensor)
@@ -298,6 +386,7 @@
     SparseCPU, SparseCUDA: abs_sparse
     SparseCsrCPU, SparseCsrCUDA: abs_sparse_csr
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_abs
+    Checkpoint: checkpoint_abs
   tags: [core, pointwise]
 
 - func: abs_(Tensor(a!) self) -> Tensor(a!)
@@ -508,6 +597,7 @@
     MkldnnCPU: mkldnn_add
     ZeroTensor: add_zerotensor
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_add_Tensor
+    Checkpoint: checkpoint_add
   tags: [core, pointwise]
 
 - func: add_.Tensor(Tensor(a!) self, Tensor other, *, Scalar alpha=1) -> Tensor(a!)
@@ -519,6 +609,7 @@
     SparseCsrCPU, SparseCsrCUDA: add_sparse_csr_
     MkldnnCPU: mkldnn_add_
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_add__Tensor
+    Checkpoint: checkpoint_add_
   tags: pointwise
 
 - func: add.out(Tensor self, Tensor other, *, Scalar alpha=1, Tensor(a!) out) -> Tensor(a!)
@@ -569,6 +660,7 @@
   variants: function, method
   dispatch:
     CompositeExplicitAutograd: add
+    Checkpoint: checkpoint_add
   tags: [core, pointwise]
 
 - func: add_.Scalar(Tensor(a!) self, Scalar other, Scalar alpha=1) -> Tensor(a!)
@@ -859,6 +951,7 @@
     Meta: as_strided_tensorimpl_meta_symint
     MPS: as_strided_tensorimpl_mps
     QuantizedCPU, QuantizedCUDA: as_strided_qtensorimpl
+    Checkpoint: checkpoint_as_strided
   device_check: NoCheck
   device_guard: False
   tags: core
@@ -1059,6 +1152,7 @@
     CPU: binary_cross_entropy_cpu
     CUDA: binary_cross_entropy_cuda
     MPS: binary_cross_entropy_mps
+    Checkpoint: checkpoint_binary_cross_entropy
 
 - func: binary_cross_entropy.out(Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean, *, Tensor(a!) out) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -1068,6 +1162,7 @@
     CPU: binary_cross_entropy_out_cpu
     CUDA: binary_cross_entropy_out_cuda
     MPS: binary_cross_entropy_out_mps
+    Checkpoint: checkpoint_binary_cross_entropy_out
 
 - func: binary_cross_entropy_backward(Tensor grad_output, Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean) -> Tensor
   python_module: nn
@@ -1076,6 +1171,7 @@
     CPU: binary_cross_entropy_backward_cpu
     CUDA: binary_cross_entropy_backward_cuda
     MPS: binary_cross_entropy_backward_mps
+    Checkpoint: checkpoint_binary_cross_entropy_backward
 
 - func: binary_cross_entropy_backward.grad_input(Tensor grad_output, Tensor self, Tensor target, Tensor? weight=None, int reduction=Mean, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
@@ -1084,12 +1180,14 @@
     CPU: binary_cross_entropy_backward_out_cpu
     CUDA: binary_cross_entropy_backward_out_cuda
     MPS: binary_cross_entropy_backward_out_mps
+    Checkpoint: checkpoint_binary_cross_entropy_backward_out
 
 - func: binary_cross_entropy_with_logits(Tensor self, Tensor target, Tensor? weight=None, Tensor? pos_weight=None, int reduction=Mean) -> Tensor
   device_check: NoCheck   # TensorIterator
   variants: function
   dispatch:
     CompositeExplicitAutograd: binary_cross_entropy_with_logits
+    Checkpoint: checkpoint_binary_cross_entropy_with_logits
   autogen: binary_cross_entropy_with_logits.out
 
 - func: bincount(Tensor self, Tensor? weights=None, int minlength=0) -> Tensor
@@ -1260,7 +1358,7 @@
     SparseCUDA: bmm_sparse_cuda
     NestedTensorCPU: bmm_nested
     NestedTensorCUDA: bmm_nested_cuda
-  tags: core
+    Checkpoint: checkpoint_bmm
 
 - func: bmm.out(Tensor self, Tensor mat2, *, Tensor(a!) out) -> Tensor(a!)
   structured: True
@@ -1272,6 +1370,7 @@
     SparseCPU: bmm_out_sparse_cpu
     SparseCUDA: bmm_out_sparse_cuda
     SparseCsrCUDA: bmm_out_sparse_csr_cuda
+    Checkpoint: checkpoint_bmm_out
 
 - func: broadcast_tensors(Tensor[] tensors) -> Tensor[]
   device_check: NoCheck
@@ -1401,12 +1500,8 @@
   structured_delegate: clamp.out
   dispatch:
     QuantizedCPU: clamp_quantized_cpu
+    Checkpoint: checkpoint_clamp
   tags: [core, pointwise]
-
-- func: clamp.Tensor(Tensor self, Tensor? min=None, Tensor? max=None) -> Tensor
-  variants: function, method
-  structured_delegate: clamp.Tensor_out
-  tags: pointwise
 
 - func: clamp_(Tensor(a!) self, Scalar? min=None, Scalar? max=None) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -1428,6 +1523,7 @@
   dispatch:
     CPU, CUDA: clamp_out
     MPS: clamp_out_mps
+    Checkpoint: checkpoint_clamp_out
   tags: pointwise
 
 - func: clamp.Tensor_out(Tensor self, Tensor? min=None, Tensor? max=None, *, Tensor(a!) out) -> Tensor(a!)
@@ -1437,6 +1533,7 @@
   dispatch:
     CPU, CUDA: clamp_Tensor_out
     MPS: clamp_Tensor_out_mps
+    Checkpoint: checkpoint_clamp_Tensor_out
   tags: pointwise
 
 - func: clamp_max(Tensor self, Scalar max) -> Tensor
@@ -1508,6 +1605,7 @@
   dispatch:
     CPU, CUDA: clamp_min_out
     MPS: clamp_min_out_mps
+    Checkpoint: checkpoint_clamp_min_out
   tags: pointwise
 
 - func: clamp_min.Tensor_out(Tensor self, Tensor min, *, Tensor(a!) out) -> Tensor(a!)
@@ -1517,6 +1615,7 @@
   dispatch:
     CPU, CUDA: clamp_min_Tensor_out
     MPS: clamp_min_Tensor_out_mps
+    Checkpoint: checkpoint_clamp_min_Tensor_out
   tags: pointwise
 
 # clip is an alias for clamp
@@ -1571,6 +1670,7 @@
   dispatch:
     CompositeExplicitAutograd: constant_pad_nd
     MPS: constant_pad_nd_mps
+    Checkpoint: checkpoint_constant_pad_nd
   autogen: constant_pad_nd.out
   tags: core
 
@@ -1747,27 +1847,32 @@
 - func: cudnn_batch_norm(Tensor input, Tensor weight, Tensor? bias, Tensor? running_mean, Tensor? running_var, bool training, float exponential_average_factor, float epsilon) -> (Tensor, Tensor, Tensor, Tensor)
   dispatch:
     CUDA: cudnn_batch_norm
+    Checkpoint: checkpoint_cudnn_batch_norm
   autogen: cudnn_batch_norm.out
 
 # NB: You can only use this if you used cudnn_batch_norm training=True
 - func: cudnn_batch_norm_backward(Tensor input, Tensor grad_output, Tensor weight, Tensor? running_mean, Tensor? running_var, Tensor? save_mean, Tensor? save_var, float epsilon, Tensor reserveSpace) -> (Tensor, Tensor, Tensor)
   dispatch:
     CUDA: cudnn_batch_norm_backward
+    Checkpoint: checkpoint_cudnn_batch_norm_backward
   autogen: cudnn_batch_norm_backward.out
 
 - func: cudnn_convolution(Tensor self, Tensor weight, int[] padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic, bool allow_tf32) -> Tensor
   dispatch:
     CUDA: cudnn_convolution
+    Checkpoint: checkpoint_cudnn_convolution
   autogen: cudnn_convolution.out
 
 - func: cudnn_convolution_transpose(Tensor self, Tensor weight, int[] padding, int[] output_padding, int[] stride, int[] dilation, int groups, bool benchmark, bool deterministic, bool allow_tf32) -> Tensor
   dispatch:
     CUDA: cudnn_convolution_transpose
+    Checkpoint: checkpoint_cudnn_convolution_transpose
   autogen: cudnn_convolution_transpose.out
 
 - func: _mps_convolution_transpose(Tensor self, Tensor weight, int[] padding, int[] output_padding, int[] stride, int[] dilation, int groups) -> Tensor
   dispatch:
     MPS: _mps_convolution_transpose
+    Checkpoint: checkpoint_mps_convolution_transpose
   autogen: _mps_convolution_transpose.out
 
 - func: mps_convolution_transpose_backward(Tensor self, Tensor grad_output, Tensor weight, int[] padding, int[] output_padding, int[] stride, int[] dilation, int groups, bool[2] output_mask) -> (Tensor, Tensor)
@@ -1918,6 +2023,7 @@
   dispatch:
     CPU: ctc_loss_cpu
     CUDA: ctc_loss_gpu
+    Checkpoint: checkpoint__ctc_loss
   autogen: _ctc_loss.out
   tags: dynamic_output_shape  # the shape of second output is data dependent
 
@@ -1931,6 +2037,7 @@
   dispatch:
     CPU: ctc_loss_backward_cpu
     CUDA: ctc_loss_backward_gpu
+    Checkpoint: checkpoint__ctc_loss_backward
   autogen: _ctc_loss_backward.out
 
 - func: _ctc_loss_backward.Tensor(Tensor grad, Tensor log_probs, Tensor targets, Tensor input_lengths, Tensor target_lengths, Tensor neg_log_likelihood, Tensor log_alpha, int blank, bool zero_infinity=False) -> Tensor
@@ -2004,6 +2111,7 @@
     SparseCPU, SparseCUDA: div_sparse
     ZeroTensor: div_zerotensor
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_div_Tensor
+    Checkpoint: checkpoint_div
   tags: [core, pointwise]
 
 - func: div_.Tensor(Tensor(a!) self, Tensor other) -> Tensor(a!)
@@ -2012,6 +2120,7 @@
   structured_delegate: div.out
   dispatch:
     SparseCPU, SparseCUDA: div_sparse_
+    Checkpoint: checkpoint_div_
   tags: pointwise
 
 - func: div.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -2157,11 +2266,13 @@
   dispatch:
     CompositeExplicitAutograd: embedding_symint
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_embedding
+    Checkpoint: checkpoint_embedding
   autogen: embedding.out
 
 - func: embedding_backward(Tensor grad, Tensor indices, SymInt num_weights, SymInt padding_idx, bool scale_grad_by_freq, bool sparse) -> Tensor
   dispatch:
     CompositeImplicitAutograd: embedding_backward_symint
+    Checkpoint: checkpoint_embedding_backward
 
 - func: embedding_dense_backward(Tensor grad_output, Tensor indices, SymInt num_weights, SymInt padding_idx, bool scale_grad_by_freq) -> Tensor
   dispatch:
@@ -2494,6 +2605,7 @@
   device_guard: False
   dispatch:
     CompositeExplicitAutograd: expand
+    Checkpoint: checkpoint_expand
   tags: core
 
 - func: expand_as(Tensor(a) self, Tensor other) -> Tensor(a)
@@ -2565,6 +2677,7 @@
     Meta: fill_meta_
     SparseCsrCPU, SparseCsrCUDA: fill_sparse_csr_
     NestedTensorCPU, NestedTensorCUDA: fill_nested_
+    Checkpoint: checkpoint_fill_
   autogen: fill.Scalar_out
 
 - func: fill_.Tensor(Tensor(a!) self, Tensor value) -> Tensor(a!)
@@ -2576,6 +2689,7 @@
     QuantizedCPU, QuantizedCUDA: fill_quantized_
     Meta: fill_meta_
     NestedTensorCPU, NestedTensorCUDA: fill_nested_
+    Checkpoint: checkpoint_fill_
   autogen: fill.Tensor_out
 
 - func: floor(Tensor self) -> Tensor
@@ -2908,6 +3022,7 @@
   variants: function, method
   dispatch:
     QuantizedCPU: quantized_index
+    Checkpoint: checkpoint_index
   tags: dynamic_output_shape
   # NB: This function is special-cased in tools/autograd/gen_variable_type.py
   # NB: The following functions are declared in aten/src/ATen/templates/TensorBody.h and defined in aten/src/ATen/TensorIndexing.cpp:
@@ -2950,6 +3065,7 @@
   variants: function, method
   dispatch:
     CompositeExplicitAutograd: index_put_
+    Checkpoint: checkpoint_index_put_
   autogen: index_put.out
   # NB: The following functions are declared in aten/src/ATen/templates/TensorBody.h and defined in aten/src/ATen/TensorIndexing.cpp:
   # - Tensor & Tensor::index_put_(ArrayRef<TensorIndex> indices, Tensor const & rhs)
@@ -3112,6 +3228,7 @@
     MPS: layer_norm_mps
     CompositeExplicitAutograd: math_native_layer_norm
     NestedTensorCPU, NestedTensorCUDA: nested_layer_norm
+    Checkpoint: checkpoint_layer_norm
   autogen: native_layer_norm.out
   tags: core
 
@@ -3121,6 +3238,7 @@
     CUDA: layer_norm_backward_cuda
     MPS: layer_norm_backward_mps
     NestedTensorCPU, NestedTensorCUDA: layer_norm_backward_nested
+    Checkpoint: checkpoint_layer_norm_backward
   autogen: native_layer_norm_backward.out
   tags: core
 
@@ -3224,6 +3342,10 @@
   device_check: NoCheck   # TensorIterator
   structured_delegate: log.out
   variants: function, method
+  dispatch:
+    CPU: log
+    CUDA: log
+    Checkpoint: checkpoint_log
   tags: [core, pointwise]
 
 - func: log_(Tensor(a!) self) -> Tensor(a!)
@@ -3239,6 +3361,7 @@
   dispatch:
     CPU, CUDA: log_out
     MPS: log_out_mps
+    Checkpoint: checkpoint_log_out
   tags: pointwise
 
 - func: log10(Tensor self) -> Tensor
@@ -3418,6 +3541,11 @@
   variants: function, method
 
 - func: _log_softmax(Tensor self, int dim, bool half_to_float) -> Tensor
+  use_c10_dispatcher: full
+  dispatch:
+    CPU: log_softmax_cpu
+    CUDA: log_softmax_cuda
+    Checkpoint: checkpoint__log_softmax
   structured_delegate: _log_softmax.out
   tags: core
 
@@ -3427,6 +3555,7 @@
     CPU: log_softmax_cpu_out
     CUDA: log_softmax_cuda_out
     MPS: log_softmax_mps_out
+    Checkpoint: checkpoint__log_softmax_out
 
 - func: _log_softmax_backward_data(Tensor grad_output, Tensor output, int dim, ScalarType input_dtype) -> Tensor
   structured_delegate: _log_softmax_backward_data.out
@@ -3437,6 +3566,7 @@
     CPU: log_softmax_backward_cpu_out
     CUDA: log_softmax_backward_cuda_out
     MPS: log_softmax_backward_mps_out
+    Checkpoint: checkpoint__log_softmax_backward_data
 
 - func: _logcumsumexp(Tensor self, int dim) -> Tensor
   dispatch:
@@ -3641,6 +3771,7 @@
   variants: function, method
   dispatch:
     CompositeExplicitAutograd: mean
+    Checkpoint: checkpoint_mean
 
 # For normal naming convention this should be `mean.out`. However since we already have `mean.out` we have to rename this.
 # FIXME: fix CI jobs and re-enable this
@@ -3655,6 +3786,7 @@
   variants: function, method
   dispatch:
     QuantizedCPU: mean_quantized_cpu
+    Checkpoint: checkpoint_mean
   tags: core
 
 - func: mean.out(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!)
@@ -3837,6 +3969,7 @@
   dispatch:
     SparseCPU, SparseCUDA: _sparse_mm
     SparseCsrCPU, SparseCsrCUDA: _sparse_csr_mm
+    Checkpoint: checkpoint_mm
   tags: core
 
 - func: mm.out(Tensor self, Tensor mat2, *, Tensor(a!) out) -> Tensor(a!)
@@ -3847,6 +3980,7 @@
     MPS: mm_out_mps
     SparseCPU, SparseCUDA: _sparse_mm_out
     SparseCsrCPU, SparseCsrCUDA: _sparse_csr_mm_out
+    Checkpoint: checkpoint_mm_out
 
 - func: _int_mm(Tensor self, Tensor mat2) -> Tensor
   dispatch:
@@ -3892,6 +4026,7 @@
     MkldnnCPU: mkldnn_mul
     ZeroTensor: mul_zerotensor
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_mul_Tensor
+    Checkpoint: checkpoint_mul
   tags: [core, pointwise]
 
 - func: mul_.Tensor(Tensor(a!) self, Tensor other) -> Tensor(a!)
@@ -3902,6 +4037,7 @@
     SparseCPU, SparseCUDA: mul_sparse_
     SparseCsrCPU, SparseCsrCUDA: mul_sparse_csr_
     MkldnnCPU: mkldnn_mul_
+    Checkpoint: checkpoint_mul_
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_mul__Tensor
   tags: pointwise
 
@@ -3926,6 +4062,7 @@
     CompositeExplicitAutograd: mul
     SparseCsrCPU, SparseCsrCUDA: mul_scalar_sparse_csr
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_mul_Scalar
+    Checkpoint: checkpoint_mul
   tags: [core, pointwise]
 
 - func: mul_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)
@@ -3952,16 +4089,22 @@
 
 - func: multiply_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)
   variants: method
+  dispatch:
+    CPU: mul_
+    CUDA: mul_
+    Checkpoint: checkpoint_mul_
 
 - func: mv(Tensor self, Tensor vec) -> Tensor
   variants: function, method
   dispatch:
     CompositeExplicitAutograd: mv
     SparseCPU, SparseCUDA: mv_sparse
+    Checkpoint: checkpoint_mv
 
 - func: mv.out(Tensor self, Tensor vec, *, Tensor(a!) out) -> Tensor(a!)
   dispatch:
     CompositeExplicitAutograd: mv_out
+    Checkpoint: checkpoint_mv_out
 
 - func: mvlgamma.out(Tensor self, int p, *, Tensor(a!) out) -> Tensor(a!)
   dispatch:
@@ -4014,6 +4157,7 @@
     CUDA: batch_norm_cuda
     MPS: batch_norm_mps
     MkldnnCPU: mkldnn_batch_norm
+    Checkpoint: checkpoint_native_batch_norm
   tags: core
 
 - func: native_batch_norm.out(Tensor input, Tensor? weight, Tensor? bias, Tensor? running_mean, Tensor? running_var, bool training, float momentum, float eps, *, Tensor(a!) out, Tensor(b!) save_mean, Tensor(c!) save_invstd) -> (Tensor(a!), Tensor(b!), Tensor(c!))
@@ -4021,6 +4165,7 @@
     CUDA: batch_norm_cuda_out
     MPS: batch_norm_mps_out
     CPU: batch_norm_cpu_out
+    Checkpoint: checkpoint_native_batch_norm_out
 
 # TODO: In 2 weeks, we should make native_batch_norm composite implicit so that this correct schema percolates correctly through our dispatching
 - func: _native_batch_norm_legit(Tensor input, Tensor? weight, Tensor? bias, Tensor(a!) running_mean, Tensor(b!) running_var, bool training, float momentum, float eps) -> (Tensor, Tensor, Tensor)
@@ -4089,6 +4234,7 @@
     CUDA: batch_norm_backward_cuda
     MPS: batch_norm_backward_mps
     MkldnnCPU: mkldnn_batch_norm_backward
+    Checkpoint: checkpoint_native_batch_norm_backward
   autogen: native_batch_norm_backward.out
 
 - func: batch_norm_backward_reduce(Tensor grad_out, Tensor input, Tensor mean, Tensor invstd, Tensor? weight, bool input_g, bool weight_g, bool bias_g) -> (Tensor, Tensor, Tensor, Tensor)
@@ -4138,6 +4284,7 @@
     # non-differentiable so NonFunctional doesn't apply
     CompositeExplicitAutograd: ones_like
     NestedTensorCPU, NestedTensorCUDA: ones_like
+    Checkpoint: checkpoint_ones_like
   autogen: ones_like.out
 
 - func: pairwise_distance(Tensor x1, Tensor x2, float p=2, float eps=1e-06, bool keepdim=False) -> Tensor
@@ -4529,6 +4676,7 @@
     SparseCPU, SparseCUDA: neg_sparse
     SparseCsrCPU, SparseCsrCUDA: neg_sparse_csr
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_neg
+    Checkpoint: checkpoint_neg
   tags: [core, pointwise]
 
 - func: neg_(Tensor(a!) self) -> Tensor(a!)
@@ -4566,6 +4714,7 @@
   dispatch:
     CompositeExplicitAutograd: repeat
     MPS: repeat_mps
+    Checkpoint: checkpoint_repeat
   autogen: repeat.out
   tags: core
 
@@ -4696,6 +4845,7 @@
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_relu
     SparseCPU, SparseCUDA: relu_sparse
     SparseCsrCPU, SparseCsrCUDA: relu_sparse_csr
+    Checkpoint: checkpoint_relu
   tags: [core, pointwise]
 
 - func: relu_(Tensor(a!) self) -> Tensor(a!)
@@ -4710,6 +4860,7 @@
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_relu_
     SparseCPU, SparseCUDA: relu_sparse_
     SparseCsrCPU, SparseCsrCUDA: relu_sparse_csr_
+    Checkpoint: checkpoint_relu_
   autogen: relu.out
   tags: pointwise
 
@@ -4843,6 +4994,7 @@
     CompositeExplicitAutograd: select_symint
     SparseCsrCPU, SparseCsrCUDA: select_sparse_csr
     NestedTensorCPU, NestedTensorCUDA: select_nested
+    Checkpoint: checkpoint_select
   tags: core
 
 - func: select_backward(Tensor grad_output, SymInt[] input_sizes, int dim, SymInt index) -> Tensor
@@ -4851,6 +5003,7 @@
   device_guard: False
   dispatch:
     CompositeExplicitAutogradNonFunctional: select_backward_symint
+    Checkpoint: checkpoint_select_backward
   autogen: select_backward.out
 
 - func: _nested_select_backward(Tensor grad_output, Tensor self, int dim, SymInt index) -> Tensor
@@ -4940,6 +5093,7 @@
   dispatch:
     QuantizedCPU: sigmoid_quantized_cpu
     MkldnnCPU: mkldnn_sigmoid
+    Checkpoint: checkpoint_sigmoid
   tags: [core, pointwise]
 
 - func: sigmoid_(Tensor(a!) self) -> Tensor(a!)
@@ -4948,6 +5102,7 @@
   variants: function, method
   dispatch:
     MkldnnCPU: mkldnn_sigmoid_
+    Checkpoint: checkpoint_sigmoid_
   tags: pointwise
 
 - func: sigmoid.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
@@ -5096,6 +5251,7 @@
   device_guard: False
   dispatch:
     CompositeExplicitAutograd: slice
+    Checkpoint: checkpoint_slice
   tags: core
 
 # NOTE: The implementation of split_with_sizes bypasses the dispatcher to call this; undo
@@ -5107,6 +5263,7 @@
   device_guard: False
   dispatch:
     CompositeExplicitAutograd: slice_backward
+    Checkpoint: checkpoint_slice_backward
   autogen: slice_backward.out
 
 - func: slice_scatter(Tensor self, Tensor src, int dim=0, SymInt? start=None, SymInt? end=None, SymInt step=1) -> Tensor
@@ -5162,6 +5319,7 @@
   dispatch:
     MkldnnCPU: mkldnn_softmax
     NestedTensorCPU, NestedTensorCUDA: softmax_nested
+    Checkpoint: checkpoint__softmax
   tags: core
 
 - func: _softmax.out(Tensor self, int dim, bool half_to_float, *, Tensor(a!) out) -> Tensor(a!)
@@ -5175,6 +5333,7 @@
   structured_delegate: _softmax_backward_data.out
   dispatch:
     NestedTensorCPU, NestedTensorCUDA: nested_softmax_backward
+    Checkpoint: checkpoint__softmax_backward_data
 
 - func: _softmax_backward_data.out(Tensor grad_output, Tensor output, int dim, ScalarType input_dtype, *, Tensor(a!) grad_input) -> Tensor(a!)
   structured: True
@@ -5280,6 +5439,7 @@
   tags: inplace_view
   dispatch:
     CompositeExplicitAutograd: squeeze_
+    Checkpoint: checkpoint_squeeze_
 
 - func: squeeze_.dim(Tensor(a!) self, int dim) -> Tensor(a!)
   variants: method
@@ -5288,6 +5448,7 @@
   tags: inplace_view
   dispatch:
     CompositeExplicitAutograd: squeeze_
+    Checkpoint: checkpoint_squeeze_
 
 - func: squeeze_.dims(Tensor(a!) self, int[] dim) -> Tensor(a!)
   variants: method
@@ -5296,6 +5457,7 @@
   tags: inplace_view
   dispatch:
     CompositeExplicitAutograd: squeeze_
+    Checkpoint: checkpoint_squeeze_
 
 - func: squeeze_.dimname(Tensor(a!) self, Dimname dim) -> Tensor(a!)
   variants: method
@@ -5372,6 +5534,7 @@
     CompositeExplicitAutograd: sum
     SparseCPU, SparseCUDA: sum_coo
     SparseCsrCPU, SparseCsrCUDA: sum_csr
+    Checkpoint: checkpoint_sum
   autogen: sum.out
 
 - func: sum.dim_IntList(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
@@ -5381,6 +5544,7 @@
   dispatch:
     NestedTensorCPU: NestedTensor_sum_dim_CPU
     SparseCPU, SparseCUDA: sum_sparse_coo
+    Checkpoint: checkpoint_sum_dim_IntList
   tags: core
 
 - func: sum.dim_DimnameList(Tensor self, Dimname[1] dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
@@ -5427,6 +5591,7 @@
   dispatch:
     SparseCPU, SparseCUDA: sqrt_sparse
     SparseCsrCPU, SparseCsrCUDA: sqrt_sparse_csr
+    Checkpoint: checkpoint_sqrt
   tags: [core, pointwise]
 
 - func: sqrt_(Tensor(a!) self) -> Tensor(a!)
@@ -5566,6 +5731,7 @@
   variants: function, method
   dispatch:
     CompositeExplicitAutograd: t
+    Checkpoint: checkpoint_t
 
 - func: t_(Tensor(a!) self) -> Tensor(a!)
   device_check: NoCheck
@@ -5574,6 +5740,7 @@
   tags: inplace_view
   dispatch:
     CompositeExplicitAutograd: t_
+    Checkpoint: checkpoint_t_
 
 - func: tan(Tensor self) -> Tensor
   device_check: NoCheck   # TensorIterator
@@ -5582,6 +5749,7 @@
   dispatch:
     SparseCPU, SparseCUDA: tan_sparse
     SparseCsrCPU, SparseCsrCUDA: tan_sparse_csr
+    Checkpoint: checkpoint_tan
   tags: pointwise
 
 - func: tan_(Tensor(a!) self) -> Tensor(a!)
@@ -5591,6 +5759,7 @@
   dispatch:
     SparseCPU, SparseCUDA: tan_sparse_
     SparseCsrCPU, SparseCsrCUDA: tan_sparse_csr_
+    Checkpoint: checkpoint_tan_
   tags: pointwise
 
 - func: tan.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
@@ -5602,6 +5771,7 @@
     MPS: tan_out_mps
     SparseCPU, SparseCUDA: tan_sparse_out
     SparseCsrCPU, SparseCsrCUDA: tan_sparse_csr_out
+    Checkpoint: checkpoint_tan_out
   tags: pointwise
 
 - func: tanh(Tensor self) -> Tensor
@@ -5614,6 +5784,7 @@
     SparseCPU, SparseCUDA: tanh_sparse
     SparseCsrCPU, SparseCsrCUDA: tanh_sparse_csr
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_tanh
+    Checkpoint: checkpoint_tanh
   tags: [core, pointwise]
 
 - func: tanh_(Tensor(a!) self) -> Tensor(a!)
@@ -5653,10 +5824,15 @@
   structured_delegate: threshold.out
   dispatch:
     QuantizedCPU: threshold_quantized_cpu
+    Checkpoint: checkpoint_threshold
 
 - func: threshold_(Tensor(a!) self, Scalar threshold, Scalar value) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
   variants: function
+  dispatch:
+    CPU: threshold_
+    CUDA: threshold__cuda
+    Checkpoint: checkpoint_threshold_
   structured_delegate: threshold.out
 
 - func: threshold.out(Tensor self, Scalar threshold, Scalar value, *, Tensor(a!) out) -> Tensor(a!)
@@ -5666,6 +5842,7 @@
   dispatch:
     CPU, CUDA: threshold_out
     MPS: threshold_out_mps
+    Checkpoint: checkpoint_threshold_out
 
 - func: threshold_backward.grad_input(Tensor grad_output, Tensor self, Scalar threshold, *, Tensor(a!) grad_input) -> Tensor(a!)
   structured: True
@@ -5675,6 +5852,7 @@
     MPS: threshold_backward_out_mps
     SparseCPU, SparseCUDA: threshold_backward_sparse_out
     SparseCsrCPU, SparseCsrCUDA: threshold_backward_sparse_compressed_out
+    Checkpoint: checkpoint_threshold_backward_out
 
 - func: threshold_backward(Tensor grad_output, Tensor self, Scalar threshold) -> Tensor
   variants: function
@@ -5684,6 +5862,7 @@
     SparseCPU, SparseCUDA: threshold_backward_sparse
     SparseCsrCPU, SparseCsrCUDA: threshold_backward_sparse_compressed
     NestedTensorCPU, NestedTensorCUDA: threshold_backwards_nested
+    Checkpoint: checkpoint_threshold_backward
   tags: pointwise
 
 - func: tile(Tensor self, int[] dims) -> Tensor
@@ -6035,6 +6214,7 @@
   dispatch:
     CPU, CUDA: where
     MPS: where_mps
+    Checkpoint: checkpoint_where
   tags: [core, pointwise]
 
 - func: where.self_out(Tensor condition, Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -6109,6 +6289,7 @@
     # NB: Although this composite mutates on the inside, it is
     # non-differentiable so NonFunctional doesn't apply
     CompositeExplicitAutograd, CompositeImplicitAutogradNestedTensor: zeros_like
+    Checkpoint: checkpoint_zeros_like
   autogen: zeros_like.out
 
 - func: _standard_gamma_grad(Tensor self, Tensor output) -> Tensor
@@ -6348,6 +6529,7 @@
     MkldnnCPU: mkldnn_clone
     QuantizedCPU, QuantizedCUDA: quantized_clone
     NestedTensorCPU, NestedTensorCUDA: clone_nested
+    Checkpoint: checkpoint_clone
   autogen: clone.out
   tags: core
 
@@ -6381,6 +6563,7 @@
     SparseCsrCPU, SparseCsrCUDA: zero_sparse_csr_
     MkldnnCPU: mkldnn_zero_
     NestedTensorCPU, NestedTensorCUDA: zero_nested_
+    Checkpoint: checkpoint_zero_
   autogen: zero, zero.out
 
 - func: sub.out(Tensor self, Tensor other, *, Scalar alpha=1, Tensor(a!) out) -> Tensor(a!)
@@ -6401,6 +6584,7 @@
     SparseCPU, SparseCUDA: sub_sparse
     ZeroTensor: sub_zerotensor
     NestedTensorCPU, NestedTensorCUDA: NestedTensor_sub_Tensor
+    Checkpoint: checkpoint_sub
   tags: [core, pointwise]
 
 - func: sub_.Tensor(Tensor(a!) self, Tensor other, *, Scalar alpha=1) -> Tensor(a!)
@@ -6409,6 +6593,7 @@
   structured_delegate: sub.out
   dispatch:
     SparseCPU, SparseCUDA: sub_sparse_
+    Checkpoint: checkpoint_sub_
   tags: pointwise
 # For C++ only, until we have conversion from C++ numbers to Tensor
 
@@ -6448,6 +6633,7 @@
   variants: function
   dispatch:
     CPU, CUDA: rsub
+    Checkpoint: checkpoint_rsub
   autogen: rsub.Tensor_out
 
 - func: heaviside.out(Tensor self, Tensor values, *, Tensor(a!) out) -> Tensor(a!)
@@ -6475,6 +6661,7 @@
   variants: function
   dispatch:
     CompositeExplicitAutograd: rsub
+    Checkpoint: checkpoint_rsub
   autogen: rsub.Scalar_out
 
 # Functionally the same as addmm, but we give it a different derivative formula
@@ -6518,6 +6705,7 @@
     SparseCUDA: addmm_out_sparse_dense_cuda
     SparseCsrCPU: addmm_out_sparse_compressed_cpu
     SparseCsrCUDA: addmm_out_sparse_compressed_cuda
+    Checkpoint: checkpoint_addmm_out
 
 - func: addmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor
   structured_delegate: addmm.out
@@ -6526,6 +6714,7 @@
     SparseCPU: addmm_sparse_dense_cpu
     SparseCUDA: addmm_sparse_dense_cuda
     SparseCsrCPU, SparseCsrCUDA: addmm_sparse_compressed_dense
+    Checkpoint: checkpoint_addmm
   tags: core
 
 - func: addmm_(Tensor(a!) self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor(a!)
@@ -6536,6 +6725,8 @@
     # broadcasting
     SparseCPU: s_addmm_sparse_dense_cpu_
     SparseCUDA: s_addmm_sparse_dense_cuda_
+    Checkpoint: checkpoint_addmm_
+
 
 - func: _addmm_activation.out(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1, bool use_gelu=False, Tensor(a!) out) -> Tensor(a!)
   structured: True
@@ -7176,6 +7367,9 @@
   variants: method
   device_check: NoCheck
   device_guard: False
+  dispatch:
+    CPU, CUDA: to
+    Checkpoint: checkpoint_to
 
 - func: to.device(Tensor(a) self, Device device, ScalarType dtype, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None) -> Tensor(a)
   variants: method
@@ -7233,6 +7427,7 @@
     CPU: _local_scalar_dense_cpu
     CUDA: _local_scalar_dense_cuda
     MPS: _local_scalar_dense_mps
+    Checkpoint: checkpoint__local_scalar_dense
   variants: function
 
 # MPS LSTM implementation
@@ -7252,6 +7447,7 @@
 - func: _thnn_fused_lstm_cell(Tensor input_gates, Tensor hidden_gates, Tensor cx, Tensor? input_bias=None, Tensor? hidden_bias=None) -> (Tensor, Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_lstm_cell_cuda
+    Checkpoint: checkpoint__thnn_fused_lstm_cell
   autogen: _thnn_fused_lstm_cell.out
 
 # NB: The composite version of this function below is a simple wrapper that duplicates some of the outputs
@@ -7260,6 +7456,7 @@
 - func: _thnn_fused_lstm_cell_backward_impl(Tensor? grad_hy, Tensor? grad_cy, Tensor cx, Tensor cy, Tensor workspace, bool has_bias) -> (Tensor, Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_lstm_cell_backward_impl_cuda
+    Checkpoint: checkpoint__thnn_fused_lstm_cell_backward_impl
   autogen: _thnn_fused_lstm_cell_backward_impl.out
 
 - func: _thnn_fused_lstm_cell_backward(Tensor? grad_hy, Tensor? grad_cy, Tensor cx, Tensor cy, Tensor workspace, bool has_bias) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
@@ -7269,11 +7466,13 @@
 - func: _thnn_fused_gru_cell(Tensor input_gates, Tensor hidden_gates, Tensor hx, Tensor? input_bias=None, Tensor? hidden_bias=None) -> (Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_gru_cell_cuda
+    Checkpoint: checkpoint__thnn_fused_gru_cell
   autogen: _thnn_fused_gru_cell.out
 
 - func: _thnn_fused_gru_cell_backward(Tensor grad_hy, Tensor workspace, bool has_bias) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
   dispatch:
     CUDA: _thnn_fused_gru_cell_backward_cuda
+    Checkpoint: checkpoint__thnn_fused_gru_cell_backward
   autogen: _thnn_fused_gru_cell_backward.out
 
 - func: _thnn_differentiable_gru_cell_backward(Tensor grad_hy, Tensor input_gates, Tensor hidden_gates, Tensor hx, Tensor? input_bias, Tensor? hidden_bias) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
@@ -7429,6 +7628,7 @@
     QuantizedCPU: masked_fill__quantized_cpu
     QuantizedCUDA: masked_fill__quantized_cuda
     MPS: masked_fill__mps
+    Checkpoint: checkpoint_masked_fill_
   autogen: masked_fill.Scalar_out
 
 - func: masked_fill.Scalar(Tensor self, Tensor mask, Scalar value) -> Tensor
@@ -7448,6 +7648,7 @@
     QuantizedCPU: masked_fill__quantized_cpu
     QuantizedCUDA: masked_fill__quantized_cuda
     MPS: masked_fill__mps
+    Checkpoint: checkpoint_masked_fill_
   autogen: masked_fill.Tensor_out
 
 - func: masked_fill.Tensor(Tensor self, Tensor mask, Tensor value) -> Tensor
@@ -7489,6 +7690,7 @@
     ZeroTensor, Meta, CPU, CUDA, QuantizedCPU, QuantizedCUDA, MPS: view
     MkldnnCPU: mkldnn_view
     NestedTensorCPU, NestedTensorCUDA: view_nested
+    Checkpoint: checkpoint_view
   tags: core
 
 # Warning: If you want to change the name or overload name of this
@@ -7503,6 +7705,7 @@
   device_guard: False
   dispatch:
     CompositeExplicitAutograd: view_dtype
+    Checkpoint: checkpoint_view_dtype
 
 - func: put_(Tensor(a!) self, Tensor index, Tensor source, bool accumulate=False) -> Tensor(a!)
   variants: method
@@ -7713,6 +7916,7 @@
   variants: function
   dispatch:
     CPU, CUDA: bitwise_and_out
+    Checkpoint: checkpoint_bitwise_and_out
   tags: pointwise
 
 - func: bitwise_and.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
@@ -7720,6 +7924,7 @@
   variants: function
   dispatch:
     CompositeExplicitAutograd: bitwise_and_out
+    Checkpoint: checkpoint_bitwise_and_out
   tags: pointwise
 
 - func: bitwise_and.Scalar(Tensor self, Scalar other) -> Tensor
@@ -8096,6 +8301,7 @@
   dispatch:
     CPU, CUDA: addbmm
     MPS: addbmm_mps
+    Checkpoint: checkpoint_addbmm
 
 - func: random_.from(Tensor(a!) self, int from, int? to, *, Generator? generator=None) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -8172,9 +8378,16 @@
   autogen: geometric, geometric.out
 
 - func: diag.out(Tensor self, int diagonal=0, *, Tensor(a!) out) -> Tensor(a!)
+  dispatch:
+    CPU, CUDA: diag_out
+    CUDA: diag_out
+    Checkpoint: checkpoint_diag_out
 
 - func: diag(Tensor self, int diagonal=0) -> Tensor
   variants: method, function
+  dispatch:
+    CPU, CUDA: diag
+    Checkpoint: checkpoint_diag
 
 - func: cross.out(Tensor self, Tensor other, int? dim=None, *, Tensor(a!) out) -> Tensor(a!)
 
@@ -8238,6 +8451,7 @@
     CPU, CUDA: ne_Scalar_out
     MPS: ne_scalar_out_mps
     QuantizedCPU: ne_out_quantized_cpu
+    Checkpoint: checkpoint_ne_Scalar_out
   tags: pointwise
 
 - func: ne.Scalar(Tensor self, Scalar other) -> Tensor
@@ -8246,6 +8460,7 @@
   variants: method, function
   dispatch:
     QuantizedCPU: ne_quantized_cpu
+    Checkpoint: checkpoint_ne_Scalar
   tags: [core, pointwise]
 
 - func: ne.Tensor_out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -8256,6 +8471,7 @@
     CPU, CUDA: ne_Tensor_out
     MPS: ne_tensor_out_mps
     QuantizedCPU: ne_out_quantized_cpu
+    Checkpoint: checkpoint_ne_Tensor_out
   tags: pointwise
 
 - func: ne.Tensor(Tensor self, Tensor other) -> Tensor
@@ -8265,6 +8481,7 @@
   dispatch:
     QuantizedCPU: ne_quantized_cpu
   tags: [core, pointwise]
+
 
 - func: ne_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)
   structured_delegate: ne.Scalar_out
@@ -8301,6 +8518,7 @@
     CPU, CUDA: eq_Scalar_out
     MPS: eq_scalar_out_mps
     QuantizedCPU: eq_out_quantized_cpu
+    Checkpoint: checkpoint_eq_Scalar_out
   tags: pointwise
 
 - func: eq.Scalar(Tensor self, Scalar other) -> Tensor
@@ -8309,6 +8527,7 @@
   variants: method, function
   dispatch:
     QuantizedCPU: eq_quantized_cpu
+    Checkpoint: checkpoint_eq_Scalar
   tags: [core, pointwise]
 
 - func: eq.Tensor_out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -8319,6 +8538,7 @@
     CPU, CUDA: eq_Tensor_out
     MPS: eq_tensor_out_mps
     QuantizedCPU: eq_out_quantized_cpu
+    Checkpoint: checkpoint_eq_Tensor_out
   tags: pointwise
 
 - func: eq.Tensor(Tensor self, Tensor other) -> Tensor
@@ -8327,6 +8547,7 @@
   variants: method, function
   dispatch:
     QuantizedCPU: eq_quantized_cpu
+    Checkpoint: checkpoint_eq_Tensor
   tags: [core, pointwise]
 
 - func: ge.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
@@ -8526,6 +8747,7 @@
     CPU, CUDA: lt_Scalar_out
     MPS: lt_scalar_out_mps
     QuantizedCPU: lt_out_quantized_cpu
+    Checkpoint: checkpoint_lt_out
   tags: pointwise
 
 - func: lt.Scalar(Tensor self, Scalar other) -> Tensor
@@ -8534,6 +8756,7 @@
   variants: method, function
   dispatch:
     QuantizedCPU: lt_quantized_cpu
+    Checkpoint: checkpoint_lt
   tags: [core, pointwise]
 
 - func: lt.Tensor_out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
@@ -8544,6 +8767,7 @@
     CPU, CUDA: lt_Tensor_out
     MPS: lt_tensor_out_mps
     QuantizedCPU: lt_out_quantized_cpu
+    Checkpoint: checkpoint_lt_out
   tags: pointwise
 
 - func: lt.Tensor(Tensor self, Tensor other) -> Tensor
@@ -8552,6 +8776,7 @@
   variants: method, function
   dispatch:
     QuantizedCPU: lt_quantized_cpu
+    Checkpoint: checkpoint_lt
   tags: [core, pointwise]
 
 - func: lt_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)
@@ -8630,6 +8855,7 @@
     CPU: masked_select_out_cpu
     CUDA: masked_select_out_cuda
     MPS: masked_select_out_mps
+    Checkpoint: checkpoint_masked_select_out
   tags: dynamic_output_shape
 
 - func: masked_select(Tensor self, Tensor mask) -> Tensor
@@ -8638,6 +8864,7 @@
     CPU: masked_select_cpu
     CUDA: masked_select_cuda
     MPS: masked_select_mps
+    Checkpoint: checkpoint_masked_select
   tags: dynamic_output_shape
 
 - func: masked_select_backward(Tensor grad, Tensor input, Tensor mask) -> Tensor
@@ -8650,6 +8877,7 @@
     CPU: nonzero_out_cpu
     CUDA: nonzero_out_cuda
     MPS: nonzero_out_mps
+    Checkpoint: checkpoint_nonzero_out
   tags: dynamic_output_shape
 
 - func: nonzero(Tensor self) -> Tensor
@@ -8658,6 +8886,7 @@
     CPU: nonzero_cpu
     CUDA: nonzero_cuda
     MPS: nonzero_mps
+    Checkpoint: checkpoint_nonzero
   tags: [dynamic_output_shape, core]
 
 - func: nonzero_numpy(Tensor self) -> Tensor[]
@@ -8709,6 +8938,9 @@
   structured_delegate: addcmul.out
   device_check: NoCheck   # TensorIterator
   variants: method
+  dispatch:
+    CPU, CUDA: addcmul_
+    Checkpoint: checkpoint_addcmul_
   tags: pointwise
 
 - func: addcdiv.out(Tensor self, Tensor tensor1, Tensor tensor2, *, Scalar value=1, Tensor(a!) out) -> Tensor(a!)
@@ -8724,6 +8956,9 @@
   structured_delegate: addcdiv.out
   device_check: NoCheck   # TensorIterator
   variants: method, function
+  dispatch:
+    CPU, CUDA: addcdiv
+    Checkpoint: checkpoint_addcdiv
   tags: pointwise
 
 - func: addcdiv_(Tensor(a!) self, Tensor tensor1, Tensor tensor2, *, Scalar value=1) -> Tensor(a!)
@@ -9001,6 +9236,7 @@
   dispatch:
     SparseCPU, SparseCUDA: sign_sparse
     SparseCsrCPU, SparseCsrCUDA: sign_sparse_csr
+    Checkpoint: checkpoint_sign
   tags: [core, pointwise]
 
 - func: sign_(Tensor(a!) self) -> Tensor(a!)
@@ -9021,6 +9257,7 @@
     MPS: sign_out_mps
     SparseCPU, SparseCUDA: sign_sparse_out
     SparseCsrCPU, SparseCsrCUDA: sign_sparse_csr_out
+    Checkpoint: checkpoint_sign_out
   tags: pointwise
 
 - func: signbit(Tensor self) -> Tensor
@@ -9500,12 +9737,14 @@
     CPU: topk_out_cpu
     CUDA: topk_out_cuda
     MPS: topk_out_mps
+    Checkpoint: checkpoint_topk_values
 
 - func: topk(Tensor self, SymInt k, int dim=-1, bool largest=True, bool sorted=True) -> (Tensor values, Tensor indices)
   variants: method, function
   structured_delegate: topk.values
   dispatch:
     QuantizedCPU: topk_quantized_cpu
+    Checkpoint: checkpoint_topk
   tags: core
 
 - func: all(Tensor self) -> Tensor
@@ -9526,6 +9765,7 @@
   variants: method, function
   dispatch:
     SparseCPU, SparseCUDA: any_sparse
+    Checkpoint: checkpoint_any
 
 - func: any.all_out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
   device_check: NoCheck
@@ -9572,6 +9812,7 @@
     CUDA: cuda_equal
     MPS: mps_equal
     QuantizedCPU: equal_quantized_cpu
+    Checkpoint: checkpoint_equal
 
 - func: pow.Tensor_Tensor_out(Tensor self, Tensor exponent, *, Tensor(a!) out) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -10892,6 +11133,7 @@
     CPU: nll_loss_forward_out_cpu
     CUDA: nll_loss_forward_out_cuda
     MPS: nll_loss_forward_out_mps
+    Checkpoint: checkpoint_nll_loss_forward_out
 
 - func: nll_loss_forward(Tensor self, Tensor target, Tensor? weight, int reduction, SymInt ignore_index) -> (Tensor output, Tensor total_weight)
   python_module: nn
@@ -10904,6 +11146,7 @@
     CPU: nll_loss_backward_out_cpu
     CUDA: nll_loss_backward_out_cuda
     MPS: nll_loss_backward_out_mps
+    Checkpoint: checkpoint_nll_loss_backward_grad_input
 
 - func: nll_loss_backward(Tensor grad_output, Tensor self, Tensor target, Tensor? weight, int reduction, SymInt ignore_index, Tensor total_weight) -> Tensor
   python_module: nn
@@ -10916,6 +11159,7 @@
   python_module: nn
   dispatch:
     CompositeImplicitAutograd: nll_loss2d_symint
+    Checkpoint: checkpoint_nll_loss2d
 
 - func: nll_loss2d_forward.output(Tensor self, Tensor target, Tensor? weight, int reduction, SymInt ignore_index, *, Tensor(a!) output, Tensor(b!) total_weight) -> (Tensor(a!), Tensor(b!))
   python_module: nn
@@ -10923,6 +11167,7 @@
     CPU: nll_loss2d_forward_out_cpu
     CUDA: nll_loss2d_forward_out_cuda
     MPS: nll_loss2d_forward_out_mps
+    Checkpoint: checkpoint_nll_loss2d_forward_out
 
 - func: nll_loss2d_forward(Tensor self, Tensor target, Tensor? weight, int reduction, SymInt ignore_index) -> (Tensor output, Tensor total_weight)
   python_module: nn
@@ -10930,6 +11175,7 @@
     CPU: nll_loss2d_forward_cpu
     CUDA: nll_loss2d_forward_cuda
     MPS: nll_loss2d_forward_mps
+    Checkpoint: checkpoint_nll_loss2d_forward
 
 - func: nll_loss2d_backward.grad_input(Tensor grad_output, Tensor self, Tensor target, Tensor? weight, int reduction, SymInt ignore_index, Tensor total_weight, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
@@ -10937,6 +11183,7 @@
     CPU: nll_loss2d_backward_out_cpu
     CUDA: nll_loss2d_backward_out_cuda
     MPS: nll_loss2d_backward_out_mps
+    Checkpoint: checkpoint_nll_loss2d_backward_out
 
 - func: nll_loss2d_backward(Tensor grad_output, Tensor self, Tensor target, Tensor? weight, int reduction, SymInt ignore_index, Tensor total_weight) -> Tensor
   python_module: nn
@@ -10944,6 +11191,7 @@
     CPU: nll_loss2d_backward_cpu
     CUDA: nll_loss2d_backward_cuda
     MPS: nll_loss2d_backward_mps
+    Checkpoint: checkpoint_nll_loss2d_backward
 
 - func: smooth_l1_loss.out(Tensor self, Tensor target, int reduction=Mean, float beta=1.0, *, Tensor(a!) out) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -11138,12 +11386,14 @@
   dispatch:
     CPU, CUDA: hardtanh_backward_out
     MPS: hardtanh_backward_out_mps
+    Checkpoint: checkpoint_hardtanh_backward_out
 
 - func: hardtanh_backward(Tensor grad_output, Tensor self, Scalar min_val, Scalar max_val) -> Tensor
   python_module: nn
   dispatch:
     CPU, CUDA: hardtanh_backward
     MPS: hardtanh_backward_mps
+    Checkpoint: checkpoint_hardtanh_backward
 
 - func: hardtanh_(Tensor(a!) self, Scalar min_val=-1, Scalar max_val=1) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -11151,6 +11401,7 @@
   dispatch:
     CPU, CUDA, MPS: hardtanh_
     QuantizedCPU: hardtanh_quantized_cpu_
+    Checkpoint: checkpoint_hardtanh_
 
 - func: hardswish.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
@@ -11471,6 +11722,7 @@
     CUDA: avg_pool2d_out_cuda
     MPS: avg_pool2d_out_mps
     MkldnnCPU: mkldnn_avg_pool2d_out
+    Checkpoint: checkpoint_avg_pool2d_out
 
 - func: avg_pool2d(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, bool ceil_mode=False, bool count_include_pad=True, int? divisor_override=None) -> Tensor
   python_module: nn
@@ -11478,6 +11730,7 @@
   dispatch:
     MkldnnCPU: mkldnn_avg_pool2d
     QuantizedCPU: avg_pool2d_quantized_cpu
+    Checkpoint: checkpoint_avg_pool2d
   tags: core
 
 - func: avg_pool2d_backward.grad_input(Tensor grad_output, Tensor self, int[2] kernel_size, int[2] stride, int[2] padding, bool ceil_mode, bool count_include_pad, int? divisor_override, *, Tensor(a!) grad_input) -> Tensor(a!)
@@ -11488,12 +11741,14 @@
     CUDA: avg_pool2d_backward_out_cuda
     MPS: avg_pool2d_backward_out_mps
     MkldnnCPU: mkldnn_avg_pool2d_backward_out
+    Checkpoint: checkpoint_avg_pool2d_backward_grad_input
 
 - func: avg_pool2d_backward(Tensor grad_output, Tensor self, int[2] kernel_size, int[2] stride, int[2] padding, bool ceil_mode, bool count_include_pad, int? divisor_override) -> Tensor
   python_module: nn
   structured_delegate: avg_pool2d_backward.grad_input
   dispatch:
     MkldnnCPU: mkldnn_avg_pool2d_backward
+    Checkpoint: checkpoint_avg_pool2d_backward
   tags: core
 
 - func: avg_pool3d.out(Tensor self, int[3] kernel_size, int[3] stride=[], int[3] padding=0, bool ceil_mode=False, bool count_include_pad=True, int? divisor_override=None, *, Tensor(a!) out) -> Tensor(a!)
@@ -11586,10 +11841,15 @@
     CPU: max_pool2d_with_indices_out_cpu
     CUDA: max_pool2d_with_indices_out_cuda
     MPS: max_pool2d_with_indices_out_mps
+    Checkpoint: checkpoint_max_pool2d_with_indices_out
 
 # Return: (Tensor output, Tensor indices)
 - func: max_pool2d_with_indices(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False) -> (Tensor, Tensor)
   python_module: nn
+  dispatch:
+    CPU: max_pool2d_with_indices_cpu
+    CUDA: max_pool2d_with_indices_cuda
+    Checkpoint: checkpoint_max_pool2d_with_indices
   structured_delegate: max_pool2d_with_indices.out
   tags: core
 
@@ -11600,6 +11860,7 @@
     CPU: max_pool2d_with_indices_backward_out_cpu
     CUDA: max_pool2d_with_indices_backward_out_cuda
     MPS: max_pool2d_with_indices_backward_out_mps
+    Checkpoint: checkpoint_max_pool2d_with_indices_backward_grad_input
 
 - func: max_pool2d_with_indices_backward(Tensor grad_output, Tensor self, int[2] kernel_size, int[2] stride, int[2] padding, int[2] dilation, bool ceil_mode, Tensor indices) -> Tensor
   python_module: nn
@@ -11910,12 +12171,14 @@
     CPU: upsample_bilinear2d_out_cpu
     CUDA: upsample_bilinear2d_out_cuda
     MPS: upsample_bilinear2d_out_mps
+    Checkpoint: checkpoint_upsample_bilinear2d_out
 
 - func: upsample_bilinear2d(Tensor self, SymInt[2] output_size, bool align_corners, float? scales_h=None, float? scales_w=None) -> Tensor
   python_module: nn
   structured_delegate: upsample_bilinear2d.out
   dispatch:
     QuantizedCPU: upsample_bilinear2d_quantized_cpu
+    Checkpoint: checkpoint_upsample_bilinear2d
 
 - func: upsample_bilinear2d_backward.grad_input(Tensor grad_output, SymInt[2] output_size, SymInt[4] input_size, bool align_corners, float? scales_h=None, float? scales_w=None, *, Tensor(a!) grad_input) -> Tensor(a!)
   python_module: nn
@@ -11924,6 +12187,7 @@
     CPU: upsample_bilinear2d_backward_out_cpu
     CUDA: upsample_bilinear2d_backward_out_cuda
     MPS: upsample_bilinear2d_backward_out_mps
+    Checkpoint: checkpoint_upsample_bilinear2d_backward_out
 
 - func: upsample_bilinear2d_backward(Tensor grad_output, SymInt[2] output_size, SymInt[4] input_size, bool align_corners, float? scales_h=None, float? scales_w=None) -> Tensor
   python_module: nn
@@ -11935,6 +12199,7 @@
   dispatch:
     CPU: _upsample_bilinear2d_aa_out_cpu
     CUDA: _upsample_bilinear2d_aa_out_cuda
+    Checkpoint: checkpoint_upsample_bilinear2d_aa_out
 
 - func: _upsample_bilinear2d_aa(Tensor self, SymInt[2] output_size, bool align_corners, float? scales_h=None, float? scales_w=None) -> Tensor
   python_module: nn
@@ -12172,6 +12437,7 @@
   dispatch:
     CPU, CUDA: sigmoid_backward_out
     MPS: sigmoid_backward_out_mps
+    Checkpoint: checkpoint_sigmoid_backward_out
   tags: pointwise
 
 - func: sigmoid_backward(Tensor grad_output, Tensor output) -> Tensor
@@ -12200,6 +12466,7 @@
   dispatch:
     CPU, CUDA: tanh_backward_out
     MPS: tanh_backward_out_mps
+    Checkpoint: checkpoint_tanh_backward_out
   tags: pointwise
 
 - func: tanh_backward(Tensor grad_output, Tensor output) -> Tensor
@@ -12259,24 +12526,28 @@
   dispatch:
     CPU: slow_conv2d_forward_out_cpu
     CUDA: slow_conv2d_forward_out_cuda
+    Checkpoint: checkpoint__slow_conv2d_forward_out
 
 - func: _slow_conv2d_forward(Tensor self, Tensor weight, int[2] kernel_size, Tensor? bias, int[2] stride, int[2] padding) -> Tensor
   python_module: nn
   dispatch:
     CPU: slow_conv2d_forward_cpu
     CUDA: slow_conv2d_forward_cuda
+    Checkpoint: checkpoint__slow_conv2d_forward
 
 - func: _slow_conv2d_backward.grad_input(Tensor grad_output, Tensor self, Tensor weight, int[2] kernel_size, int[2] stride, int[2] padding, *, Tensor(a!) grad_input, Tensor(b!) grad_weight, Tensor(c!) grad_bias) -> (Tensor(a!), Tensor(b!), Tensor(c!))
   python_module: nn
   dispatch:
     CPU: slow_conv2d_backward_out_cpu
     CUDA: slow_conv2d_backward_out_cuda
+    Checkpoint: checkpoint_thnn_conv2d_backward_out
 
 - func: _slow_conv2d_backward.output_mask(Tensor grad_output, Tensor self, Tensor weight, int[2] kernel_size, int[2] stride, int[2] padding, bool[3] output_mask) -> (Tensor grad_input, Tensor grad_weight, Tensor grad_bias)
   python_module: nn
   dispatch:
     CPU: slow_conv2d_backward_cpu
     CUDA: slow_conv2d_backward_cuda
+    Checkpoint: checkpoint__slow_conv2d_backward_out
   autogen: _slow_conv2d_backward.output_mask_out
 
 - func: _conv_depthwise2d.out(Tensor self, Tensor weight, int[2] kernel_size, Tensor? bias, int[2] stride, SymInt[2] padding, int[2] dilation, *, Tensor(a!) out) -> Tensor(a!)
@@ -13744,7 +14015,15 @@
   variants: function
   dispatch:
     CompositeExplicitAutogradNonFunctional: split_with_sizes_copy_symint
+    Checkpoint: checkpoint_split_with_sizes
   tags: view_copy
+
+- func: split_with_sizes_backward(Tensor[] grads, int[] split_sizes, int dim, int[] sizes, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None) -> Tensor
+  variants: function
+  dispatch:
+    CPU: split_with_sizes_backward
+    CUDA: split_with_sizes_backward
+    Checkpoint: checkpoint_split_with_sizes_backward
 
 - func: squeeze_copy(Tensor self) -> Tensor
   variants: function
