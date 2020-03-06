@@ -197,7 +197,7 @@ static inline DeviceType backendToDeviceType(Backend b) {
     case Backend::MkldnnCPU:
     case Backend::QuantizedCPU:
       return DeviceType::CPU;
-  case Backend::Undefined:
+    case Backend::Undefined:
       AT_ERROR("Undefined backend is not a valid device type");
     default:
       AT_ERROR(std::string("Unknown backend: ") + toString(b));
