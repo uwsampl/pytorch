@@ -465,6 +465,10 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
     return *device_opt_;
   }
 
+  c10::optional<c10::Device> optional_device() const {
+    return device_opt_;
+  }
+
   Layout layout() const {
     // NB: This method is not virtual and avoid dispatches for perf.
     if (is_sparse()) {
@@ -858,11 +862,16 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
 
   /**
    * One TensorImpl can be copied to another TensorImpl if they have the same
-   * DispatchKeySet. The only two special cases (for legacy reason) are:
+   * DispatchKeySet.
+   * Special cases (for legacy reason) are:
    * CPUTensorId is compatible with CUDATensorId and SparseCPUTensorId is
    * compatible with SparseCUDATensorId.
+   * CheckPointTensor are supposed to be used in a purely functional manner, so there is no copy.
    */
   inline bool has_compatible_shallow_copy_type(DispatchKeySet from) {
+    if (key_set_.has(DispatchKey::CheckPointTensorId) || from.has(DispatchKey::CheckPointTensorId)) {
+      return false;
+    }
     auto is_dense = [](DispatchKeySet ts) {
       return ts.has(DispatchKey::CPUTensorId) ||
              ts.has(DispatchKey::CUDATensorId) ||
