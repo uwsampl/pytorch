@@ -24,14 +24,10 @@
 
 namespace at {
 
-DispatchKeySet convert_key_set(const DispatchKeySet& t) {
-  return t.add(DispatchKey::CheckPointTensorId).remove(DispatchKey::VariableTensorId);
-}
-
 struct CAFFE2_API CheckPointTensorImpl final : public TensorImpl {
   Tensor t;
   explicit CheckPointTensorImpl(const Tensor& t) :
-    TensorImpl(convert_key_set(t.key_set()), t.dtype(), t.optional_device()),
+    TensorImpl(t.key_set(), t.dtype(), t.optional_device()),
     t(t) { }
 };
 

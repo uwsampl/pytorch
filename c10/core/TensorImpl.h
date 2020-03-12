@@ -866,12 +866,8 @@ struct C10_API TensorImpl : public c10::intrusive_ptr_target {
    * Special cases (for legacy reason) are:
    * CPUTensorId is compatible with CUDATensorId and SparseCPUTensorId is
    * compatible with SparseCUDATensorId.
-   * CheckPointTensor are supposed to be used in a purely functional manner, so there is no copy.
    */
   inline bool has_compatible_shallow_copy_type(DispatchKeySet from) {
-    if (key_set_.has(DispatchKey::CheckPointTensorId) || from.has(DispatchKey::CheckPointTensorId)) {
-      return false;
-    }
     auto is_dense = [](DispatchKeySet ts) {
       return ts.has(DispatchKey::CPUTensorId) ||
              ts.has(DispatchKey::CUDATensorId) ||
