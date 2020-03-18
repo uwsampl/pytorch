@@ -27,15 +27,6 @@ Tensor checkpoint_add(at::Tensor const& a, at::Tensor const& b, c10::Scalar c) {
   return CheckpointTensorImpl::make("add", rt, s)[0];
 }
 
-Tensor checkpoint_abs(at::Tensor const& a) {
-  rematerialize_function_t rt =
-    [=](const Tensors& vec) -> Tensors {
-      return {at::abs(vec.at(0))};
-    };
-  strongs s = {from_tensor(a)};
-  return CheckpointTensorImpl::make("abs", rt, s)[0];
-}
-
 Tensor& checkpoint_add_(Tensor& a, const Tensor& b, Scalar c) {
   mutate_function_t mt =
     [=](const Tensors& vec) {
@@ -43,6 +34,15 @@ Tensor& checkpoint_add_(Tensor& a, const Tensor& b, Scalar c) {
     };
   CheckpointTensorImpl::mutate("add_", mt, {a, b});
   return a;
+}
+
+Tensor checkpoint_abs(at::Tensor const& a) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::abs(vec.at(0))};
+    };
+  strongs s = {from_tensor(a)};
+  return CheckpointTensorImpl::make("abs", rt, s)[0];
 }
 
 Tensor checkpoint_div(at::Tensor const& a, at::Tensor const& b) {
@@ -61,6 +61,72 @@ Tensor& checkpoint_div_(Tensor& a, const Tensor& b) {
     };
   CheckpointTensorImpl::mutate("div_", mt, {a, b});
   return a;
+}
+
+Tensor checkpoint_constant_pad_nd(Tensor const& a, c10::ArrayRef<long> b, c10::Scalar c) {
+  std::vector<long> b_ = b.vec();
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::constant_pad_nd(vec[0], b_, c)};
+    };
+  strongs s = {from_tensor(a)};
+  return CheckpointTensorImpl::make("constant_pad_nd", rt, s)[0];
+}
+
+Tensor checkpoint_binary_cross_entropy(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, long d) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::binary_cross_entropy(vec[0], vec[1], vec[2], d)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
+  return CheckpointTensorImpl::make("binary_cross_entropy", rt, s)[0];
+}
+
+Tensor& checkpoint_binary_cross_entropy_out(at::Tensor& a, at::Tensor const& b, at::Tensor const& c, at::Tensor const& d, long e) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor self = vec.at(0);
+      at::binary_cross_entropy_out(self, vec.at(1), vec.at(2), vec.at(3), e);
+    };
+  CheckpointTensorImpl::mutate("binary_cross_entropy_out", mt, {a, b, c, d});
+  return a;
+}
+
+Tensor checkpoint_binary_cross_entropy_backward(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, at::Tensor const& d, long e) { 
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::binary_cross_entropy_backward(vec[0], vec[1], vec[2], vec[3], e)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b), from_tensor(c), from_tensor(d)};
+  return CheckpointTensorImpl::make("binary_cross_entropy_backward", rt, s)[0];
+}
+
+Tensor& checkpoint_binary_cross_entropy_backward_out(at::Tensor& a, at::Tensor const& b, at::Tensor const& c, at::Tensor const& d, at::Tensor const& e, long f) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor self = vec.at(0);
+      at::binary_cross_entropy_backward_out(self, vec.at(1), vec.at(2), vec.at(3), vec.at(4), f);
+    };
+  CheckpointTensorImpl::mutate("binary_cross_entropy_backward_out", mt, {a, b, c, d, e});
+  return a;
+}
+
+Tensor checkpoint_embedding(at::Tensor const& a, at::Tensor const& b, long c, bool d, bool e) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::embedding(vec[0], vec[1], c, d, e)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
+  return CheckpointTensorImpl::make("embedding", rt, s)[0];
+}
+
+Tensor checkpoint_embedding_backward(at::Tensor const& a, at::Tensor const& b, long c, long d, bool e, bool f) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::embedding_backward(vec[0], vec[1], c, d, e, f)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
+  return CheckpointTensorImpl::make("embedding", rt, s)[0];
 }
 
 }}

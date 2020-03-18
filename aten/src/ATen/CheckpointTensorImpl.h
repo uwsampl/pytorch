@@ -27,6 +27,7 @@ void DTRLog(const std::string& str);
 
 struct CAFFE2_API CheckpointTensorCell : intrusive_ptr_target {
   Tensor t;
+  explicit CheckpointTensorCell(const Tensor& t) : t(t.detach()) { }
   int id = gen_counter();
   static int counter;
   static int gen_counter() {
@@ -40,6 +41,7 @@ struct CAFFE2_API CheckpointTensorCell : intrusive_ptr_target {
 struct CAFFE2_API CheckpointTensorImplCell : intrusive_ptr_target {
   mutable intrusive_ptr<CheckpointTensorCell> value;
   explicit CheckpointTensorImplCell(const intrusive_ptr<CheckpointTensorCell>& value) : value(value) { }
+  explicit CheckpointTensorImplCell(const Tensor& t) : value(intrusive_ptr<CheckpointTensorCell>::make(t)) { }
   void release_resources() final {
     value.reset();
   }
@@ -54,11 +56,19 @@ using Tensors = std::vector<Tensor>;
 using rematerialize_function_t = std::function<Tensors(const Tensors&)>;
 using mutate_function_t = std::function<void(const Tensors&)>;
 
+inline DispatchKeySet convert_key_set(const DispatchKeySet& t) {
+  auto ret = t.add(DispatchKey::CheckpointTensorId);
+  CHECK(!ret.has(DispatchKey::VariableTensorId));
+  return ret;
+}
+
 struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
   intrusive_ptr<CheckpointTensorImplCell> ref;
-  void release_resources() final;
-  explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref);
-  explicit CheckpointTensorImpl(const Tensor& t);
+  void release_resources() final {
+    ref.reset();
+  }
+  explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref) : TensorImpl(ref->value->t.key_set(), ref->value->t.dtype(), ref->value->t.optional_device()), ref(ref) { }
+  explicit CheckpointTensorImpl(const Tensor& t) : CheckpointTensorImpl(intrusive_ptr<CheckpointTensorImplCell>::make(t)) { }
   static Tensors make(const std::string& name,
                       const rematerialize_function_t& remat,
                       const strongs& input_values);
@@ -84,6 +94,10 @@ inline strong from_tensor(const Tensor& t) {
 
 inline Tensor get(const strong& s) {
   return s->t;
+}
+
+inline intrusive_ptr<CheckpointTensorImplCell> cell_from_tensor(const Tensor& t) {
+  return get_cpti(t)->ref;
 }
 
 }
