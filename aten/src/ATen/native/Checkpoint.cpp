@@ -67,7 +67,7 @@ Tensor checkpoint_constant_pad_nd(Tensor const& a, c10::ArrayRef<long> b, c10::S
   std::vector<long> b_ = b.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::constant_pad_nd(vec[0], b_, c)};
+      return {at::constant_pad_nd(vec.at(0), b_, c)};
     };
   strongs s = {from_tensor(a)};
   return CheckpointTensorImpl::make("constant_pad_nd", rt, s)[0];
@@ -76,7 +76,7 @@ Tensor checkpoint_constant_pad_nd(Tensor const& a, c10::ArrayRef<long> b, c10::S
 Tensor checkpoint_binary_cross_entropy(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, long d) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::binary_cross_entropy(vec[0], vec[1], vec[2], d)};
+      return {at::binary_cross_entropy(vec.at(0), vec.at(1), vec.at(2), d)};
     };
   strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
   return CheckpointTensorImpl::make("binary_cross_entropy", rt, s)[0];
@@ -95,7 +95,7 @@ Tensor& checkpoint_binary_cross_entropy_out(at::Tensor& a, at::Tensor const& b, 
 Tensor checkpoint_binary_cross_entropy_backward(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, at::Tensor const& d, long e) { 
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::binary_cross_entropy_backward(vec[0], vec[1], vec[2], vec[3], e)};
+      return {at::binary_cross_entropy_backward(vec.at(0), vec.at(1), vec.at(2), vec.at(3), e)};
     };
   strongs s = {from_tensor(a), from_tensor(b), from_tensor(c), from_tensor(d)};
   return CheckpointTensorImpl::make("binary_cross_entropy_backward", rt, s)[0];
@@ -114,7 +114,7 @@ Tensor& checkpoint_binary_cross_entropy_backward_out(at::Tensor& a, at::Tensor c
 Tensor checkpoint_embedding(at::Tensor const& a, at::Tensor const& b, long c, bool d, bool e) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::embedding(vec[0], vec[1], c, d, e)};
+      return {at::embedding(vec.at(0), vec.at(1), c, d, e)};
     };
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckpointTensorImpl::make("embedding", rt, s)[0];
@@ -123,7 +123,7 @@ Tensor checkpoint_embedding(at::Tensor const& a, at::Tensor const& b, long c, bo
 Tensor checkpoint_embedding_backward(at::Tensor const& a, at::Tensor const& b, long c, long d, bool e, bool f) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::embedding_backward(vec[0], vec[1], c, d, e, f)};
+      return {at::embedding_backward(vec.at(0), vec.at(1), c, d, e, f)};
     };
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckpointTensorImpl::make("embedding", rt, s)[0];
@@ -133,7 +133,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor>
 checkpoint_cudnn_batch_norm(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, at::Tensor const& d, at::Tensor const& e, bool f, double g, double h) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      auto ret = at::cudnn_batch_norm(vec[0], vec[1], vec[2], vec[3], vec[4], f, g, h);
+      auto ret = at::cudnn_batch_norm(vec.at(0), vec.at(1), vec.at(2), vec.at(3), vec.at(4), f, g, h);
       return {std::get<0>(ret), std::get<1>(ret), std::get<2>(ret), std::get<3>(ret)};
     };
   strongs s = {from_tensor(a), from_tensor(b), from_tensor(c), from_tensor(d), from_tensor(e)};
@@ -145,7 +145,7 @@ Tensor checkpoint_as_strided(at::Tensor const& a, c10::ArrayRef<long> b, c10::Ar
   std::vector<long> b_ = b.vec(), c_ = c.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::as_strided(vec[0], b_, c_, d)};
+      return {at::as_strided(vec.at(0), b_, c_, d)};
     };
   strongs s = {from_tensor(a)};
   return CheckpointTensorImpl::make("as_strided", rt, s)[0];
@@ -154,7 +154,7 @@ Tensor checkpoint_as_strided(at::Tensor const& a, c10::ArrayRef<long> b, c10::Ar
 Tensor checkpoint__masked_scale(at::Tensor const& a, at::Tensor const& b, double c) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::_masked_scale(vec[0], vec[1], c)};
+      return {at::_masked_scale(vec.at(0), vec.at(1), c)};
     };
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckpointTensorImpl::make("_masked_scale", rt, s)[0];
@@ -164,7 +164,7 @@ Tensor checkpoint_cudnn_convolution(at::Tensor const& a, at::Tensor const& b, c1
   std::vector<long> c_ = c.vec(), d_ = d.vec(), e_ = e.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::cudnn_convolution(vec[0], vec[1], c_, d_, e_, f, g, h)};
+      return {at::cudnn_convolution(vec.at(0), vec.at(1), c_, d_, e_, f, g, h)};
     };
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckpointTensorImpl::make("cudnn_convolution", rt, s)[0];
@@ -174,7 +174,7 @@ Tensor checkpoint_cudnn_convolution_transpose(at::Tensor const& a, at::Tensor co
   std::vector<long> c_ = c.vec(), d_ = d.vec(), e_ = e.vec(), f_ = f.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::cudnn_convolution_transpose(vec[0], vec[1], c_, d_, e_, f_, g, h, i)};
+      return {at::cudnn_convolution_transpose(vec.at(0), vec.at(1), c_, d_, e_, f_, g, h, i)};
     };
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckpointTensorImpl::make("cudnn_convolution_transpose", rt, s)[0];
@@ -184,7 +184,7 @@ std::tuple<Tensor, Tensor> checkpoint_cudnn_convolution_backward(at::Tensor cons
   std::vector<long> d_ = d.vec(), e_ = e.vec(), f_ = f.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      auto ret = at::cudnn_convolution_backward(vec[0], vec[1], vec[2], d_, e_, f_, g, h, i, j);
+      auto ret = at::cudnn_convolution_backward(vec.at(0), vec.at(1), vec.at(2), d_, e_, f_, g, h, i, j);
       return {std::get<0>(ret), std::get<1>(ret)};
     };
   strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
@@ -196,7 +196,7 @@ std::tuple<Tensor, Tensor> checkpoint_cudnn_convolution_transpose_backward(at::T
   std::vector<long> d_ = d.vec(), e_ = e.vec(), f_ = f.vec(), g_ = g.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      auto ret = at::cudnn_convolution_transpose_backward(vec[0], vec[1], vec[2], d_, e_, f_, g_, h, i, j, k);
+      auto ret = at::cudnn_convolution_transpose_backward(vec.at(0), vec.at(1), vec.at(2), d_, e_, f_, g_, h, i, j, k);
       return {std::get<0>(ret), std::get<1>(ret)};
     };
   strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
@@ -208,7 +208,7 @@ Tensor checkpoint_cudnn_convolution_backward_input(c10::ArrayRef<long> a, at::Te
   std::vector<long> a_ = a.vec(), d_ = d.vec(), e_ = e.vec(), f_ = f.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::cudnn_convolution_backward_input(a_, vec[0], vec[1], d_, e_, f_, g, h, i)};
+      return {at::cudnn_convolution_backward_input(a_, vec.at(0), vec.at(1), d_, e_, f_, g, h, i)};
     };
   strongs s = {from_tensor(b), from_tensor(c)};
   return CheckpointTensorImpl::make("cudnn_convolution_backward_input", rt, s)[0];
@@ -218,7 +218,7 @@ Tensor checkpoint_cudnn_convolution_transpose_backward_input(at::Tensor const& a
   std::vector<long> c_ = c.vec(), d_ = d.vec(), e_ = e.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::cudnn_convolution_transpose_backward_input(vec[0], vec[1], c_, d_, e_, f, g, h)};
+      return {at::cudnn_convolution_transpose_backward_input(vec.at(0), vec.at(1), c_, d_, e_, f, g, h)};
     };
   strongs s = {from_tensor(a), from_tensor(b)};
   return CheckpointTensorImpl::make("cudnn_convolution_transpose_backward_input", rt, s)[0];
@@ -228,7 +228,7 @@ Tensor checkpoint_cudnn_convolution_backward_weight(c10::ArrayRef<long> a, at::T
   std::vector<long> a_ = a.vec(), d_ = d.vec(), e_ = e.vec(), f_ = f.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::cudnn_convolution_backward_weight(a_, vec[0], vec[1], d_, e_, f_, g, h, i)};
+      return {at::cudnn_convolution_backward_weight(a_, vec.at(0), vec.at(1), d_, e_, f_, g, h, i)};
     };
   strongs s = {from_tensor(b), from_tensor(c)};
   return CheckpointTensorImpl::make("cudnn_convolution_backward_weight", rt, s)[0];
@@ -238,7 +238,7 @@ Tensor checkpoint_cudnn_convolution_transpose_backward_weight(c10::ArrayRef<long
   std::vector<long> a_ = a.vec(), d_ = d.vec(), e_ = e.vec(), f_ = f.vec();
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
-      return {at::cudnn_convolution_transpose_backward_weight(a_, vec[0], vec[1], d_, e_, f_, g, h, i)};
+      return {at::cudnn_convolution_transpose_backward_weight(a_, vec.at(0), vec.at(1), d_, e_, f_, g, h, i)};
     };
   strongs s = {from_tensor(b), from_tensor(c)};
   return CheckpointTensorImpl::make("cudnn_convolution_transpose_backward_weight", rt, s)[0];
