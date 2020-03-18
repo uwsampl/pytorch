@@ -27,6 +27,14 @@ void DTRLog(const std::string& str);
 
 struct CAFFE2_API CheckpointTensorCell : intrusive_ptr_target {
   Tensor t;
+  int id = gen_counter();
+  static int counter;
+  static int gen_counter() {
+    return ++counter;
+  }
+  std::string name() {
+    return std::string("x") + std::to_string(id);
+  }
 };
 
 struct CAFFE2_API CheckpointTensorImplCell : intrusive_ptr_target {
@@ -51,12 +59,31 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
   void release_resources() final;
   explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref);
   explicit CheckpointTensorImpl(const Tensor& t);
-  static Tensors make(const char* name,
+  static Tensors make(const std::string& name,
                       const rematerialize_function_t& remat,
                       const strongs& input_values);
-  static void mutate(const char* name,
+  static void mutate(const std::string& name,
                      const mutate_function_t& mutate,
                      const Tensors& input_values);
 };
+
+inline CheckpointTensorImpl* get_cpti(const Tensor& t) {
+  auto* cpti = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl());
+  TORCH_CHECK(cpti != nullptr);
+  return cpti;
+}
+
+inline strong from_tensor(const Tensor& t) {
+  auto* cpt = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl());
+  if(cpt != nullptr) {
+    return cpt->ref->value;
+  } else {
+    return get_cpti(native::checkpoint(t))->ref->value;
+  }
+}
+
+inline Tensor get(const strong& s) {
+  return s->t;
+}
 
 }
