@@ -23,6 +23,8 @@
 
 namespace at {
 
+void DTRLog(const std::string& str);
+
 struct CAFFE2_API CheckpointTensorImpl final : public TensorImpl {
   Tensor t;
   explicit CheckpointTensorImpl(const Tensor& t) :
