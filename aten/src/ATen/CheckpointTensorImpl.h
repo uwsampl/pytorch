@@ -31,7 +31,7 @@ struct CAFFE2_API CheckpointTensorCell : intrusive_ptr_target {
   int id = gen_counter();
   static int counter;
   static int gen_counter() {
-    return ++counter;
+    return counter++;
   }
   std::string name() {
     return std::string("x") + std::to_string(id);
@@ -67,7 +67,9 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
   void release_resources() final {
     ref.reset();
   }
-  explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref) : TensorImpl(ref->value->t.key_set(), ref->value->t.dtype(), ref->value->t.optional_device()), ref(ref) { }
+  explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref) : TensorImpl(convert_key_set(ref->value->t.key_set()),
+                                                                                                 ref->value->t.dtype(),
+                                                                                                 ref->value->t.optional_device()), ref(ref) { }
   explicit CheckpointTensorImpl(const Tensor& t) : CheckpointTensorImpl(intrusive_ptr<CheckpointTensorImplCell>::make(t)) { }
   static Tensors make(const std::string& name,
                       const rematerialize_function_t& remat,

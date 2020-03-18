@@ -41,18 +41,23 @@ Tensors make_raw(const rematerialize_function_t& remat,
   return ret;
 }
 
-// todo: fix the logging.
 Tensors CheckpointTensorImpl::make(const std::string& name,
                                    const rematerialize_function_t& remat,
                                    const strongs& input_values) {
   Tensors ret = make_raw(remat, input_values);
   std::string log("(");
   for (const Tensor& t: ret) {
-    log += t.name();
+    log += cell_from_tensor(t)->value->name();
     log += ", ";
   }
-  log += ") ";
+  log += ") = ";
   log += name;
+  log += "(";
+  for (const strong& s: input_values) {
+    log += s->name();
+    log += ", ";
+  }
+  log += ")";
   DTRLog(log);
   return ret;
 }
