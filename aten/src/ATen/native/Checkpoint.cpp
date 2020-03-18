@@ -10,7 +10,7 @@ Tensor checkpoint(const Tensor& t) {
 Tensor decheckpoint(const Tensor& t) {
   auto* cpti = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl());
   CHECK(cpti != nullptr);
-  return cpti->t;
+  return cpti->ref->value->t;
 }
 
 bool is_checkpoint(const Tensor& t) {
