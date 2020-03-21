@@ -31,6 +31,7 @@ Tensors make_raw(const rematerialize_function_t& remat,
                  const strongs& input_values) {
   std::vector<Tensor> input;
   for (const strong& s: input_values) {
+    CHECK(!s->t.key_set().has(DispatchKey::CheckpointTensorId));
     input.push_back(s->t);
   }
   auto output = remat(input);
@@ -64,20 +65,25 @@ Tensors CheckpointTensorImpl::make(const std::string& name,
 
 void CheckpointTensorImpl::mutate(const std::string& name,
                                   const mutate_function_t& mutate,
-                                  const Tensors& inputs) {
+                                  const Tensors& inputs,
+                                  const std::vector<size_t>& mutate_idx) {
   auto remat = [=](const Tensors& t) -> Tensors {
-                 auto t0 = t[0].clone();
                  Tensors new_input_values = t;
-                 new_input_values[0] = t0;
+                 for (size_t idx: mutate_idx) {
+                   new_input_values[idx] = t[idx].clone();
+                 }
                  mutate(new_input_values);
-                 return {t0};
+                 return new_input_values;
                };
   strongs input_values;
   for (const Tensor& t : inputs) {
     input_values.push_back(from_tensor(t));
   }
-  auto modified = make_raw(remat, input_values)[0];
-  cell_from_tensor(inputs[0])->value = cell_from_tensor(modified)->value;
+  auto modified = make_raw(remat, input_values);
+  DTRLog(name);
+  for (size_t idx: mutate_idx) {
+    cell_from_tensor(inputs[idx])->value = cell_from_tensor(modified[idx])->value;
+  }
 }
 
 }

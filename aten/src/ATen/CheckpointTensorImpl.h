@@ -57,6 +57,7 @@ using rematerialize_function_t = std::function<Tensors(const Tensors&)>;
 using mutate_function_t = std::function<void(const Tensors&)>;
 
 inline DispatchKeySet convert_key_set(const DispatchKeySet& t) {
+  CHECK(!t.has(DispatchKey::CheckpointTensorId));
   auto ret = t.add(DispatchKey::CheckpointTensorId);
   CHECK(!ret.has(DispatchKey::VariableTensorId));
   return ret;
@@ -76,7 +77,30 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
                       const strongs& input_values);
   static void mutate(const std::string& name,
                      const mutate_function_t& mutate,
-                     const Tensors& input_values);
+                     const Tensors& input_values,
+                     const std::vector<size_t>& mutate_idx);
+  intrusive_ptr<TensorImpl> shallow_copy_and_detach(const VariableVersion& version_counter,
+                                                    bool allow_tensor_metadata_change) const override {
+    return intrusive_ptr<CheckpointTensorImpl>::make(ref);
+  }
+  int64_t dim() const override {
+    return ref->value->t.dim();
+  }
+  int64_t numel() const override {
+    return ref->value->t.numel();
+  }
+  IntArrayRef sizes() const override {
+    return ref->value->t.sizes();
+  }
+  int64_t size(int64_t d) const override {
+    return ref->value->t.size(d);
+  }
+  IntArrayRef strides() const override {
+    return ref->value->t.strides();
+  }
+  bool has_storage() const override {
+    return false;
+  }
 };
 
 inline CheckpointTensorImpl* get_cpti(const Tensor& t) {
