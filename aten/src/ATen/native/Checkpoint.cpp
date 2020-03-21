@@ -349,4 +349,119 @@ Tensor checkpoint_max_pool2d_with_indices_backward(const Tensor& a, const Tensor
   return CheckpointTensorImpl::make("max_pool2d_with_indices_backward", rt, s)[0];
 }
 
+Tensor checkpoint_view(at::Tensor const& a, c10::ArrayRef<long> b) {
+  std::vector<long> b_ = b.vec();
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {vec.at(0).view(b_)};
+    };
+  strongs s = {from_tensor(a)};
+  return CheckpointTensorImpl::make("view", rt, s)[0];
+}
+
+Tensor checkpoint_ne_Scalar(at::Tensor const& a, c10::Scalar b) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::ne(vec.at(0), b)};
+    };
+  strongs s = {from_tensor(a)};
+  return CheckpointTensorImpl::make("ne_Scalar", rt, s)[0];
+}
+
+Tensor& checkpoint_ne_Scalar_out(at::Tensor& a, at::Tensor const& b, c10::Scalar c) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      at::ne_out(a_, vec.at(1), c);
+    };
+  CheckpointTensorImpl::mutate("ne_Scalar_out", mt, {a, b}, {0});
+  return a;
+}
+
+Tensor checkpoint_ne_Tensor(at::Tensor const& a, at::Tensor const& b) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::ne(vec.at(0), vec.at(1))};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
+  return CheckpointTensorImpl::make("ne_Tensor", rt, s)[0];
+}
+
+Tensor& checkpoint_ne_Tensor_out(at::Tensor& a, at::Tensor const& b, at::Tensor const& c) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      at::ne_out(a_, vec.at(1), vec.at(2));
+    };
+  CheckpointTensorImpl::mutate("ne_Tensor_out", mt, {a, b, c}, {0});
+  return a;
+}
+
+Tensor checkpoint_eq_Scalar(at::Tensor const& a, c10::Scalar b) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::eq(vec.at(0), b)};
+    };
+  strongs s = {from_tensor(a)};
+  return CheckpointTensorImpl::make("eq_Scalar", rt, s)[0];
+}
+
+Tensor& checkpoint_eq_Scalar_out(at::Tensor& a, at::Tensor const& b, c10::Scalar c) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      at::eq_out(a_, vec.at(1), c);
+    };
+  CheckpointTensorImpl::mutate("eq_Scalar_out", mt, {a, b}, {0});
+  return a;
+}
+
+Tensor checkpoint_eq_Tensor(at::Tensor const& a, at::Tensor const& b) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::eq(vec.at(0), vec.at(1))};
+    };
+  strongs s = {from_tensor(a), from_tensor(b)};
+  return CheckpointTensorImpl::make("eq_Tensor", rt, s)[0];
+}
+
+Tensor& checkpoint_eq_Tensor_out(at::Tensor& a, at::Tensor const& b, at::Tensor const& c) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      at::eq_out(a_, vec.at(1), vec.at(2));
+    };
+  CheckpointTensorImpl::mutate("eq_Tensor_out", mt, {a, b, c}, {0});
+  return a;
+}
+
+Tensor checkpoint_addmm(at::Tensor const& a, at::Tensor const& b, at::Tensor const& c, c10::Scalar d, c10::Scalar e) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::addmm(vec.at(0), vec.at(1), vec.at(2), d, e)};
+    };
+  strongs s = {from_tensor(a), from_tensor(b), from_tensor(c)};
+  return CheckpointTensorImpl::make("addmm", rt, s)[0];
+}
+
+Tensor& checkpoint_addmm_out(at::Tensor& a, at::Tensor const& b, at::Tensor const& c, at::Tensor const& d, c10::Scalar e, c10::Scalar f) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      at::addmm_out(a_, vec.at(1), vec.at(2), d, e, f);
+    };
+  CheckpointTensorImpl::mutate("addmm_out", mt, {a, b, c}, {0});
+  return a;
+}
+
+Tensor& checkpoint_addmm_(at::Tensor& a, at::Tensor const& b, at::Tensor const& c, c10::Scalar d, c10::Scalar e) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      Tensor a_ = vec.at(0);
+      a.addmm_(vec.at(1), vec.at(2), d, e);
+    };
+  CheckpointTensorImpl::mutate("addmm_", mt, {a, b, c}, {0});
+  return a;
+}
+
 }}

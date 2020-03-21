@@ -3245,6 +3245,7 @@
     CUDA: legacy::cuda::_th_addmm_out
     SparseCPU: addmm_out_sparse_dense_cpu
     SparseCUDA: addmm_out_sparse_dense_cuda
+    Checkpoint: checkpoint_addmm_out
   supports_named_tensor: True
 
 - func: addmm(Tensor self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor
@@ -3255,6 +3256,7 @@
     CUDA: legacy::cuda::_th_addmm
     SparseCPU: addmm_sparse_dense_cpu
     SparseCUDA: addmm_sparse_dense_cuda
+    Checkpoint: checkpoint_addmm
   supports_named_tensor: True
 
 - func: addmm_(Tensor(a!) self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor(a!)
@@ -3266,6 +3268,7 @@
     # broadcasting
     SparseCPU: s_addmm_sparse_dense_cpu_
     SparseCUDA: s_addmm_sparse_dense_cuda_
+    Checkpoint: checkpoint_addmm_
   supports_named_tensor: True
 
 
@@ -3917,6 +3920,7 @@
     CUDA: view
     MkldnnCPU: mkldnn_view
     QuantizedCPU: view
+    Checkpoint: checkpoint_view
 
 - func: put_(Tensor(a!) self, Tensor index, Tensor source, bool accumulate=False) -> Tensor(a!)
   variants: method
@@ -4423,6 +4427,7 @@
     CPU: ne_out
     CUDA: ne_out
     QuantizedCPU: ne_out_quantized_cpu
+    Checkpoint: checkpoint_ne_Scalar_out
 
 - func: ne.Scalar(Tensor self, Scalar other) -> Tensor
   supports_named_tensor: True
@@ -4432,6 +4437,7 @@
     CPU: ne
     CUDA: ne
     QuantizedCPU: ne_quantized_cpu
+    Checkpoint: checkpoint_ne_Scalar
 
 - func: ne.Tensor_out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4439,6 +4445,7 @@
     CPU: ne_out
     CUDA: ne_out
     QuantizedCPU: ne_out_quantized_cpu
+    Checkpoint: checkpoint_ne_Tensor_out
 
 - func: ne.Tensor(Tensor self, Tensor other) -> Tensor
   supports_named_tensor: True
@@ -4448,6 +4455,7 @@
     CPU: ne
     CUDA: ne
     QuantizedCPU: ne_quantized_cpu
+    Checkpoint: checkpoint_ne_Tensor
 
 - func: eq.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4455,6 +4463,7 @@
     CPU: eq_out
     CUDA: eq_out
     QuantizedCPU: eq_out_quantized_cpu
+    Checkpoint: checkpoint_eq_Scalar_out
 
 - func: eq.Scalar(Tensor self, Scalar other) -> Tensor
   supports_named_tensor: True
@@ -4464,6 +4473,7 @@
     CPU: eq
     CUDA: eq
     QuantizedCPU: eq_quantized_cpu
+    Checkpoint: checkpoint_eq_Scalar
 
 - func: eq.Tensor_out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
@@ -4471,6 +4481,7 @@
     CPU: eq_out
     CUDA: eq_out
     QuantizedCPU: eq_out_quantized_cpu
+    Checkpoint: checkpoint_eq_Tensor_out
 
 - func: eq.Tensor(Tensor self, Tensor other) -> Tensor
   supports_named_tensor: True
@@ -4480,6 +4491,7 @@
     CPU: eq
     CUDA: eq
     QuantizedCPU: eq_quantized_cpu
+    Checkpoint: checkpoint_eq_Tensor
 
 - func: ge.Scalar_out(Tensor self, Scalar other, *, Tensor(a!) out) -> Tensor(a!)
   supports_named_tensor: True
