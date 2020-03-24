@@ -323,7 +323,6 @@ Tensor& checkpoint_max_pool2d_with_indices_backward_grad_input(Tensor& a, const 
     };
   CheckpointTensorImpl::mutate("max_pool2d_with_indices_backward_grad_input", mt, {a, b, c, i}, {0});
   return a;
-
 }
 
 Tensor checkpoint_max_pool2d_with_indices_backward(const Tensor& a, const Tensor& b, c10::ArrayRef<long> c, c10::ArrayRef<long> d, c10::ArrayRef<long> e, c10::ArrayRef<long> f, bool g, const Tensor& h) {

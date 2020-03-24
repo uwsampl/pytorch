@@ -75,6 +75,7 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
   static Tensors make(const std::string& name,
                       const rematerialize_function_t& remat,
                       const Tensors& inputs);
+  // mutate_idx indicate which of the inputs will get mutated.
   static void mutate(const std::string& name,
                      const mutate_function_t& mutate,
                      const Tensors& inputs,
