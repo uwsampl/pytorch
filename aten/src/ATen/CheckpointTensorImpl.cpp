@@ -27,19 +27,29 @@ void DTRLog(const std::string& str) {
 
 int CheckpointTensorImpl::counter = 0;
 
-Tensors make_raw(const rematerialize_function_t& remat,
+Tensor checkpoint_raw(const Tensor& t) {
+  return Tensor(intrusive_ptr<CheckpointTensorImpl>::make(t.detach()));
+}
+
+std::tuple<Tensors, duration_t> make_raw(const rematerialize_function_t& remat,
                  const strongs& input_values) {
   std::vector<Tensor> input;
   for (const strong& s: input_values) {
     CHECK(!s->t.key_set().has(DispatchKey::CheckpointTensorId));
     input.push_back(s->t);
   }
+  time_t pre = std::chrono::system_clock::now();
   auto output = remat(input);
+  time_t post = std::chrono::system_clock::now();
   Tensors ret;
   for (const Tensor& o: output) {
-    ret.push_back(native::checkpoint(o));
+    ret.push_back(checkpoint_raw(o));
   }
-  return ret;
+  return {ret, post - pre};
+}
+
+std::string from_time(duration_t t) {
+  return std::to_string(std::chrono::nanoseconds(t).count());
 }
 
 Tensors CheckpointTensorImpl::make(const std::string& name,
@@ -55,15 +65,21 @@ Tensors CheckpointTensorImpl::make(const std::string& name,
   }
   arg += ")";
   std::string log = "(";
-  Tensors ret = make_raw(remat, input_values);
-  for (const Tensor& t: ret) {
+  auto ret = make_raw(remat, input_values);
+  for (const Tensor& t: std::get<0>(ret)) {
     log += get_cpti(t)->counter_name();
     log += ", ";
   }
   log += ") = ";
   log += arg;
+  log += " TIME: ";
+  log += from_time(std::get<1>(ret));
   DTRLog(log);
-  return ret;
+  for (const Tensor& t: std::get<0>(ret)) {
+    auto cpti = get_cpti(t);
+    DTRLog(cpti->counter_name() + " MEMORY: " + std::to_string(cpti->ref->value->memory()));
+  }
+  return std::get<0>(ret);
 }
 
 void CheckpointTensorImpl::mutate(const std::string& name,
@@ -88,8 +104,11 @@ void CheckpointTensorImpl::mutate(const std::string& name,
     input_values.push_back(std::get<0>(ft));
   }
   log += ")";
+  auto ret = make_raw(remat, input_values);
+  log += " TIME: ";
+  log += from_time(std::get<1>(ret));
   DTRLog(log);
-  auto modified = make_raw(remat, input_values);
+  const auto& modified = std::get<0>(ret);
   for (size_t idx: mutate_idx) {
     cell_from_tensor(inputs[idx])->value = cell_from_tensor(modified[idx])->value;
   }

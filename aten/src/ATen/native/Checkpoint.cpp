@@ -4,7 +4,9 @@
 namespace at { namespace native {
 
 Tensor checkpoint(const Tensor& t) {
-  return Tensor(intrusive_ptr<CheckpointTensorImpl>::make(t.detach()));
+  auto cpti = intrusive_ptr<CheckpointTensorImpl>::make(t.detach());
+  DTRLog(std::string("CONSTANT ") + cpti->counter_name() + std::string(" MEMORY: ") + std::to_string(cpti->ref->value->memory()));
+  return Tensor(cpti);
 }
 
 Tensor decheckpoint(const Tensor& t) {

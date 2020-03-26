@@ -28,6 +28,9 @@ void DTRLog(const std::string& str);
 struct CAFFE2_API CheckpointTensorCell : intrusive_ptr_target {
   Tensor t;
   explicit CheckpointTensorCell(const Tensor& t) : t(t.detach()) { }
+  size_t memory() {
+    return t.defined() ? t.numel() * t.itemsize() : 0;
+  }
 };
 
 struct CAFFE2_API CheckpointTensorImplCell : intrusive_ptr_target {
@@ -48,6 +51,9 @@ using Tensors = std::vector<Tensor>;
 using rematerialize_function_t = std::function<Tensors(const Tensors&)>;
 using mutate_function_t = std::function<void(const Tensors&)>;
 
+using time_t = std::chrono::time_point<std::chrono::system_clock>;
+using duration_t = std::chrono::system_clock::duration;
+
 inline DispatchKeySet convert_key_set(const DispatchKeySet& t) {
   CHECK(!t.has(DispatchKey::CheckpointTensorId));
   auto ret = t.add(DispatchKey::CheckpointTensorId);
@@ -61,7 +67,7 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
   static int gen_counter() {
     return counter++;
   }
-  std::string counter_name() {
+  std::string counter_name() const {
     return std::string("x") + std::to_string(id);
   }
   intrusive_ptr<CheckpointTensorImplCell> ref;
@@ -82,7 +88,9 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
                      const std::vector<size_t>& mutate_idx);
   intrusive_ptr<TensorImpl> shallow_copy_and_detach(const VariableVersion& version_counter,
                                                     bool allow_tensor_metadata_change) const override {
-    return intrusive_ptr<CheckpointTensorImpl>::make(ref);
+    auto ret = intrusive_ptr<CheckpointTensorImpl>::make(ref);
+    DTRLog(ret->counter_name() + " = " + counter_name());
+    return ret;
   }
   int64_t dim() const override {
     return ref->value->t.dim();
