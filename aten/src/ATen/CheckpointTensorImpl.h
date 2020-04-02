@@ -72,6 +72,7 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
   }
   intrusive_ptr<CheckpointTensorImplCell> ref;
   void release_resources() final {
+    DTRLog("FREED: " + counter_name());
     ref.reset();
   }
   explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref) : TensorImpl(convert_key_set(ref->value->t.key_set()),
