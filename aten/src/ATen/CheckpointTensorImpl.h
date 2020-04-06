@@ -71,10 +71,7 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
     return std::string("x") + std::to_string(id);
   }
   intrusive_ptr<CheckpointTensorImplCell> ref;
-  void release_resources() final {
-    DTRLog("FREED: " + counter_name());
-    ref.reset();
-  }
+  void release_resources() final;
   explicit CheckpointTensorImpl(const intrusive_ptr<CheckpointTensorImplCell>& ref) : TensorImpl(convert_key_set(ref->value->t.key_set()),
                                                                                                  ref->value->t.dtype(),
                                                                                                  ref->value->t.optional_device()), ref(ref) { }
@@ -88,11 +85,7 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
                      const Tensors& inputs,
                      const std::vector<size_t>& mutate_idx);
   intrusive_ptr<TensorImpl> shallow_copy_and_detach(const VariableVersion& version_counter,
-                                                    bool allow_tensor_metadata_change) const override {
-    auto ret = intrusive_ptr<CheckpointTensorImpl>::make(ref);
-    DTRLog(ret->counter_name() + " = " + counter_name());
-    return ret;
-  }
+                                                    bool allow_tensor_metadata_change) const override;
   int64_t dim() const override {
     return ref->value->t.dim();
   }
