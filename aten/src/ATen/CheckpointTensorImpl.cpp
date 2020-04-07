@@ -29,7 +29,7 @@ void DTRLog(const std::string& str) {
 using json = nlohmann::json;using json = nlohmann::json;
 bool log_json = true;
 const std::string INSTRUCTION = "INSTRUCTION";
-const std::string FREED = "FREED";
+const std::string FREE = "FREE";
 const std::string TIME = "TIME";
 const std::string ARGS = "ARGS";
 const std::string MEMORY = "MEMORY";
@@ -107,7 +107,7 @@ Tensor checkpoint_raw(const Tensor& t) {
 }
 
 std::tuple<Tensors, duration_t> make_raw(const rematerialize_function_t& remat,
-                 const strongs& input_values) {
+                                         const strongs& input_values) {
   std::vector<Tensor> input;
   for (const strong& s: input_values) {
     CHECK(!s->t.key_set().has(DispatchKey::CheckpointTensorId));
@@ -116,11 +116,7 @@ std::tuple<Tensors, duration_t> make_raw(const rematerialize_function_t& remat,
   time_t pre = std::chrono::system_clock::now();
   auto output = remat(input);
   time_t post = std::chrono::system_clock::now();
-  Tensors ret;
-  for (const Tensor& o: output) {
-    ret.push_back(checkpoint_raw(o));
-  }
-  return {ret, post - pre};
+  return {output, post - pre};
 }
 
 std::string from_time(duration_t t) {
@@ -168,15 +164,18 @@ Tensors CheckpointTensorImpl::make(const std::string& name,
   }
   std::vector<std::string> res;
   auto ret = make_raw(remat, input_values);
+  Tensors tensors;
   for (const Tensor& t: std::get<0>(ret)) {
-    res.push_back(get_cpti(t)->counter_name());
+    auto cp = checkpoint_raw(t);
+    tensors.push_back(cp);
+    res.push_back(get_cpti(cp)->counter_name());
   }
   DTRLogCall(res, name, args, from_time(std::get<1>(ret)));
-  for (const Tensor& t: std::get<0>(ret)) {
+  for (const Tensor& t: tensors) {
     auto cpti = get_cpti(t);
     DTRLogMemory(cpti->counter_name(), cpti->ref->value->memory());
   }
-  return std::get<0>(ret);
+  return tensors;
 }
 
 void DTRLogMutate(const std::string& name, const std::vector<std::string>& args, const std::vector<size_t>& mutate, const std::string& time) {
@@ -232,24 +231,24 @@ void CheckpointTensorImpl::mutate(const std::string& name,
   auto ret = make_raw(remat, input_values);
   const auto& modified = std::get<0>(ret);
   for (size_t idx: mutate_idx) {
-    cell_from_tensor(inputs[idx])->value = cell_from_tensor(modified[idx])->value;
+    cell_from_tensor(inputs[idx])->value = intrusive_ptr<CheckpointTensorCell>::make(modified[idx]);
   }
   DTRLogMutate(name, args, mutate_idx, from_time(std::get<1>(ret)));
 }
 
-void DTRLogFreed(const std::string& counter_name) {
+void DTRLogFree(const std::string& counter_name) {
   if (log_json) {
     json j;
-    j[INSTRUCTION] = FREED;
+    j[INSTRUCTION] = FREE;
     j[NAME] = counter_name;
     DTRLog(j.dump());
   } else {
-    DTRLog(FREED + ": " + counter_name);
+    DTRLog(FREE + ": " + counter_name);
   }
 }
 
 void CheckpointTensorImpl::release_resources() {
-  DTRLogFreed(counter_name());
+  DTRLogFree(counter_name());
     ref.reset();
 }
 
