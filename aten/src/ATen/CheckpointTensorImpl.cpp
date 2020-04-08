@@ -29,7 +29,7 @@ void DTRLog(const std::string& str) {
 using json = nlohmann::json;using json = nlohmann::json;
 bool log_json = true;
 const std::string INSTRUCTION = "INSTRUCTION";
-const std::string FREE = "FREE";
+const std::string RELEASE = "RELEASE";
 const std::string TIME = "TIME";
 const std::string ARGS = "ARGS";
 const std::string MEMORY = "MEMORY";
@@ -236,19 +236,19 @@ void CheckpointTensorImpl::mutate(const std::string& name,
   DTRLogMutate(name, args, mutate_idx, from_time(std::get<1>(ret)));
 }
 
-void DTRLogFree(const std::string& counter_name) {
+void DTRLogRelease(const std::string& counter_name) {
   if (log_json) {
     json j;
-    j[INSTRUCTION] = FREE;
+    j[INSTRUCTION] = RELEASE;
     j[NAME] = counter_name;
     DTRLog(j.dump());
   } else {
-    DTRLog(FREE + ": " + counter_name);
+    DTRLog(RELEASE + ": " + counter_name);
   }
 }
 
 void CheckpointTensorImpl::release_resources() {
-  DTRLogFree(counter_name());
+  DTRLogRelease(counter_name());
     ref.reset();
 }
 
