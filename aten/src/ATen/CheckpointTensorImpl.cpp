@@ -107,6 +107,11 @@ Tensor checkpoint_raw(const Tensor& t) {
   return Tensor(intrusive_ptr<CheckpointTensorImpl>::make(t.detach()));
 }
 
+// remat take a single vector of tensors,
+// while there are two vector, one storing nonconstants and one storing constants.
+// the constants are small and they will not be considered for eviction.
+// however, we have to stitch the two vectors together to pass it in remat.
+// the size_t in constants decide the location to stitch them in, while input_values fill in the rest.
 std::tuple<Tensors, duration_t> make_raw(const rematerialize_function_t& remat,
                                          const strongs& input_values,
                                          const std::vector<std::tuple<Tensor, size_t>>& constants) {
