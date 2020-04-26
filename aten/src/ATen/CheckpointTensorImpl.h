@@ -84,6 +84,12 @@ struct CAFFE2_API CheckpointTensorImpl : TensorImpl {
                      const std::vector<size_t>& mutate_idx);
   intrusive_ptr<TensorImpl> shallow_copy_and_detach(const VariableVersion& version_counter,
                                                     bool allow_tensor_metadata_change) const override;
+  virtual void shallow_copy_from(const c10::intrusive_ptr<TensorImpl>& impl) override {
+    TORCH_CHECK(impl->key_set().has(DispatchKey::CheckpointTensorId));
+    auto* cpti = dynamic_cast<CheckpointTensorImpl*>(impl.get());
+    TORCH_CHECK(cpti != nullptr);
+    ref->value = cpti->ref->value;
+  }
   int64_t dim() const override {
     return ref->value->t.dim();
   }

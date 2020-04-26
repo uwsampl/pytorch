@@ -73,10 +73,15 @@ Tensor checkpoint(const Tensor& t) {
   return Tensor(cpti);
 }
 
-Tensor decheckpoint(const Tensor& t) {
+Tensor uncheckpoint(const Tensor& t) {
   auto* cpti = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl());
   CHECK(cpti != nullptr);
   return cpti->ref->value->t;
+}
+
+Tensor decheckpoint(const Tensor& t) {
+  auto* cpti = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl());
+  return cpti ? cpti->ref->value->t : t;
 }
 
 bool is_checkpoint(const Tensor& t) {
@@ -138,7 +143,9 @@ std::tuple<Tensors, duration_t> make_raw(const rematerialize_function_t& remat,
   size_t i = 0, j = 0;
   while (i != input_values.size() || j != constants.size()) {
     if (j < constants.size() && std::get<1>(constants[j]) == input.size()) {
-      input.push_back(std::get<0>(constants[j]));
+      Tensor t = std::get<0>(constants[j]);
+      TORCH_CHECK(!t.key_set().has(DispatchKey::CheckpointTensorId));
+      input.push_back(t);
       ++j;
     }
     else {
