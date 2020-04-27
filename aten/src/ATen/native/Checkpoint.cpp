@@ -89,8 +89,7 @@ Tensor checkpoint_addcmul(at::Tensor const& a, at::Tensor const& b, at::Tensor c
 Tensor& checkpoint_addcmul_(at::Tensor& a, at::Tensor const& b, at::Tensor const& c, c10::Scalar d) {
   mutate_function_t mt =
     [=](const Tensors& vec) {
-      Tensor a_ = vec.at(0);
-      at::addcmul(a_, vec.at(1), vec.at(2), d);
+      vec.at(0).addcmul_(vec.at(1), vec.at(2), d);
     };
   CheckpointTensorImpl::mutate("addcmul_", mt, {a, b, c}, {0});
   return a;
@@ -115,8 +114,7 @@ Tensor checkpoint_sqrt(const Tensor& a) {
 Tensor& checkpoint_addcdiv_(at::Tensor& a, at::Tensor const& b, at::Tensor const& c, c10::Scalar d) {
   mutate_function_t mt =
     [=](const Tensors& vec) {
-      Tensor a_ = vec.at(0);
-      at::addcdiv(a_, vec.at(1), vec.at(2), d);
+      vec.at(0).addcdiv_(vec.at(1), vec.at(2), d);
     };
   CheckpointTensorImpl::mutate("addcdiv_", mt, {a, b, c}, {0});
   return a;
