@@ -30,7 +30,7 @@ struct DTRLogger {
 static DTRLogger logger;
 
 using json = nlohmann::json;
-bool log_json = true;
+constexpr bool log_json = true;
 const std::string INSTRUCTION = "INSTRUCTION";
 const std::string ANNOTATION = "ANNOTATION";
 const std::string RELEASE = "RELEASE";
@@ -100,10 +100,22 @@ void annotate_log(std::string str) {
     j[ANNOTATION] = str;
     logger.log(j.dump());
   } else {
-    logger.log(str);
+    logger.log("# " + str);
   }
 }
 
+}
+
+void DTRLogCopyFrom(const std::string& to, const std::string& from) {
+  if (log_json) {
+    json j;
+    j[INSTRUCTION] = "COPY_FROM";
+    j["DST"] = to;
+    j["SRC"] = from;
+    logger.log(j.dump());
+  } else {
+    logger.log(to + " <- " + from);
+  }
 }
 
 void DTRLogCopy(const std::string& new_name, const std::string& old_name) {
@@ -123,6 +135,14 @@ intrusive_ptr<TensorImpl> CheckpointTensorImpl::shallow_copy_and_detach(const Va
   auto ret = intrusive_ptr<CheckpointTensorImpl>::make(ref);
   DTRLogCopy(ret->counter_name(), counter_name());
   return ret;
+}
+
+void CheckpointTensorImpl::shallow_copy_from(const c10::intrusive_ptr<TensorImpl>& impl) {
+  TORCH_CHECK(impl->key_set().has(DispatchKey::CheckpointTensorId));
+  auto* cpti = dynamic_cast<CheckpointTensorImpl*>(impl.get());
+  TORCH_CHECK(cpti != nullptr);
+  ref->value = cpti->ref->value;
+  DTRLogCopyFrom(counter_name(), cpti->counter_name());
 }
 
 int CheckpointTensorImpl::counter = 0;
@@ -182,7 +202,7 @@ void DTRLogCall(const std::vector<std::string>& res,
   } else {
     CHECK(constants.size() == 0); //TODO: implement.
     std::string arg = name + "(";
-    for (const auto& s : arg) {
+    for (const auto& s : args) {
       arg += s;
       arg += ", ";
     }
