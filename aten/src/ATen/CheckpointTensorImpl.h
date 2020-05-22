@@ -150,20 +150,16 @@ struct Rematerializer : intrusive_ptr_target {
   // because they dont have rematerializer it will never get evicted.
   // We should probably refactor and fix this, but it will take some nontrivial effort.
   strongs input_values;
-  std::vector<std::tuple<Tensor, size_t>> constants;
   weaks outputs;
   rematerialize_function_t func;
   Rematerializer(const Unsafe&,
                  const strongs& input_values,
-                 const std::vector<std::tuple<Tensor, size_t>>& constants,
                  const rematerialize_function_t& func)  :
     input_values(input_values),
-    constants(constants),
     func(func) {
   }
   void release_resources() final {
     input_values.clear();
-    constants.clear();
     outputs.clear();
     func = rematerialize_function_t();
   }

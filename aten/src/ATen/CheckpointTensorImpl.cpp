@@ -18,32 +18,15 @@ void External::release_resources() {
   value.reset();
 }
 
-Tensors stitch(const strongs& input_values,
-               const std::vector<std::tuple<Tensor, size_t>>& constants) {
-  Tensors input;
-  size_t i = 0, j = 0;
-  while (i != input_values.size() || j != constants.size()) {
-    if (j < constants.size() && std::get<1>(constants[j]) == input.size()) {
-      Tensor t = std::get<0>(constants[j]);
-      TORCH_CHECK(!t.key_set().has(DispatchKey::CheckpointTensorId));
-      input.push_back(t);
-      ++j;
-    }
-    else {
-      CHECK(i < input_values.size());
-      input.push_back(input_values[i]->get());
-      ++i;
-    }
-  }
-  return input;
-}
-
 void Rematerializer::remat() {
   // TODO: refactor using RAII for exception safety.
   for (const strong& s : input_values) {
     ++(s->pool->lock_count);
   }
-  Tensors ts = stitch(input_values, constants);
+  Tensors ts;
+  for (size_t i = 0; i < input_values.size(); ++i) {
+    ts.push_back(input_values[i]->get());
+  }
   auto ret = func(ts);
   TORCH_CHECK(ret.size() == outputs.size());
   for (size_t i = 0; i < outputs.size(); ++i) {
@@ -147,25 +130,23 @@ struct MakeRawResult {
   intrusive_ptr<Rematerializer> rematerializer;
 };
 
-// remat take a single vector of tensors,
-// while there are two vector, one storing nonconstants and one storing constants.
-// the constants are small and they will not be considered for eviction.
-// however, we have to stitch the two vectors together to pass it in remat.
-// the size_t in constants decide the location to stitch them in, while input_values fill in the rest.
 MakeRawResult make_raw(const rematerialize_function_t& remat_f,
                        // We need this to assign alias pool.
                        // This is ugly as fuck but after refactoring we dont even need stitching anymore.
                        const Tensors& raw_input,
-                       const strongs& input_values,
-                       const std::vector<std::tuple<Tensor, size_t>>& constants) {
-  Tensors inputs = stitch(input_values, constants);
+                       const strongs& input_values) {
+  Tensors inputs;
+  for (size_t i = 0; i < input_values.size(); ++i) {
+    CHECK(!input_values[i]->get().key_set().has(DispatchKey::CheckpointTensorId));
+    inputs.push_back(input_values[i]->get());
+  }
   time_t pre = std::chrono::system_clock::now();
   auto outputs_raw = remat_f(inputs);
   time_t post = std::chrono::system_clock::now();
   std::vector<intrusive_ptr<External>> outputs;
   std::vector<int> aliases;
   weaks weak_outputs;
-  auto remat = intrusive_ptr<Rematerializer>::make(Unsafe(), input_values, constants, remat_f);
+  auto remat = intrusive_ptr<Rematerializer>::make(Unsafe(), input_values, remat_f);
   for (const Tensor& t : outputs_raw) {
     int alias = get_alias(inputs, t);
     intrusive_ptr<AliasPool> pool;
@@ -174,7 +155,9 @@ MakeRawResult make_raw(const rematerialize_function_t& remat_f,
     }
     else if (auto* cpti = dynamic_cast<CheckpointTensorImpl*>(raw_input[alias].unsafeGetTensorImpl())) {
       pool = cpti->ref->value->value->pool;
-    } else { // alias to an constant. unevictable.
+    } else {
+      // this would be an alias to an constant; should not happen
+      TORCH_CHECK(false);
       pool = intrusive_ptr<AliasPool>::make(Unsafe(), false, memory(t));
     }
     auto e = intrusive_ptr<External>::make(t, pool, remat);
@@ -191,33 +174,42 @@ std::string from_time(duration_t t) {
   return std::to_string(std::chrono::nanoseconds(t).count());
 }
 
+// given an input t, add its name and value to args, new_tensors, and input_values if it's checkpointed;
+// otherwise it's a non-checkpointed constant, so checkpoint it first and then add it to those lists
+void update_inputs(const Tensor& t, std::vector<std::string>* args, Tensors* new_tensors, strongs* input_values) {
+  if (auto* cpt = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl())) {
+    new_tensors->push_back(t);
+    input_values->push_back(cpt->ref->value->value);
+    args->push_back(cpt->counter_name());
+    return;
+  }
+  // non-checkpointed constant -> we will create a checkpointed tensor
+  auto checkpointed = at::native::checkpoint(t);
+  auto* cpt = dynamic_cast<CheckpointTensorImpl*>(checkpointed.unsafeGetTensorImpl());
+  TORCH_CHECK(cpt != nullptr);
+  new_tensors->push_back(checkpointed);
+  input_values->push_back(cpt->ref->value->value);
+  args->push_back(cpt->counter_name());
+}
+
 Tensors CheckpointTensorImpl::make(const std::string& name,
                                    const rematerialize_function_t& remat,
                                    const Tensors& inputs) {
+  Tensors new_tensors;
   strongs input_values;
-  std::vector<std::tuple<Tensor, size_t>> constants;
-  std::vector<size_t> constant_idx;
   std::vector<std::string> args;
   for (const Tensor& t: inputs) {
-    if (auto* cpti = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl())) {
-      input_values.push_back(cpti->ref->value->value);
-      args.push_back(cpti->counter_name());
-    }
-    else {
-      size_t idx = input_values.size() + constants.size();
-      constants.push_back({t, idx});
-      constant_idx.push_back(idx);
-    }
+    update_inputs(t, &args, &new_tensors, &input_values);
   }
   std::vector<std::string> res;
-  auto ret = make_raw(remat, inputs, input_values, constants);
+  auto ret = make_raw(remat, new_tensors, input_values);
   Tensors tensors;
   for (const auto& t: ret.outputs) {
     auto cp = Tensor(intrusive_ptr<CheckpointTensorImpl>::make(t));
     tensors.push_back(cp);
     res.push_back(get_cpti(cp)->counter_name());
   }
-  DTRLogCall(res, name, args, constant_idx, from_time(ret.time));
+  DTRLogCall(res, name, args, from_time(ret.time));
   for (size_t i = 0; i < tensors.size(); ++i) {
     Tensor t = tensors[i];
     auto cpti = get_cpti(t);
@@ -227,7 +219,6 @@ Tensors CheckpointTensorImpl::make(const std::string& name,
   return tensors;
 }
 
-// TODO: check that mutated value does not have alias.
 void CheckpointTensorImpl::mutate(const std::string& name,
                                   const mutate_function_t& mutate,
                                   const Tensors& inputs,
@@ -240,27 +231,18 @@ void CheckpointTensorImpl::mutate(const std::string& name,
                  mutate(new_input_values);
                  return new_input_values;
                };
+  Tensors new_tensors;
   strongs input_values;
-  std::vector<std::tuple<Tensor, size_t>> constants;
-  std::vector<size_t> constant_idx;
   std::vector<std::string> args;
   for (const Tensor& t: inputs) {
-    if (auto* cpti = dynamic_cast<CheckpointTensorImpl*>(t.unsafeGetTensorImpl())) {
-      input_values.push_back(cpti->ref->value->value);
-      args.push_back(cpti->counter_name());
-    }
-    else {
-      size_t idx = input_values.size() + constants.size();
-      constants.push_back({t, idx});
-      constant_idx.push_back(idx);
-    }
+    update_inputs(t, &args, &new_tensors, &input_values);
   }
-  auto ret = make_raw(remat, inputs, input_values, constants);
+  auto ret = make_raw(remat, new_tensors, input_values);
   const auto& modified = ret.outputs;
   for (size_t idx: mutate_idx) {
-    cell_from_tensor(inputs[idx])->value = modified[idx];
+    cell_from_tensor(new_tensors[idx])->value = modified[idx];
   }
-  DTRLogMutate(name, args, constant_idx, mutate_idx, from_time(ret.time));
+  DTRLogMutate(name, args, mutate_idx, from_time(ret.time));
 }
 
 void CheckpointTensorImpl::release_resources() {
