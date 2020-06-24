@@ -204,7 +204,6 @@ class THCCachingAllocator {
   void malloc(void** devPtr, size_t size, cudaStream_t stream)
   {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-
     int device;
     C10_CUDA_CHECK(cudaGetDevice(&device));
 
