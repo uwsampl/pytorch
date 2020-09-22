@@ -133,6 +133,12 @@ long remat_compute_time_ = 0;
 long search_time_ = 0;
 long cost_time_ = 0;
 
+// forward declaration
+void dtr_preallocate(size_t size);
+// time spent inside the preallocator
+// (should be reset before and after recording an op time)
+duration_t PREALLOC_TIME = duration_t::zero();
+
 CheckpointPool pool;
 void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
   if (p->memory > 0 && (memory_count == 0 || p->memory >= 0.01 * double(memory_sum/memory_count))) {
@@ -207,7 +213,12 @@ void CheckpointPool::evict() {
   search_time_ += (post - pre).count();
 }
 
-CheckpointPool::CheckpointPool() { }
+CheckpointPool::CheckpointPool() {
+  // weird implementation of c10 binary means we can't have
+  // a direct call from the CUDACachingAllocator to our callback;
+  // hence we register it using a function pointer
+  c10::cuda::CUDACachingAllocator::register_dtr_callback(*dtr_preallocate);
+}
 
 namespace native {
 
@@ -415,7 +426,24 @@ void Rematerializer::remat() {
   ecn.reset();
   for (const strong& s : inputs) {
     s->pool->unlock();
+    }
+}
+
+// Called in the CUDA Caching Allocator right before each allocation.
+// Here we check if we've exceeded the budget and perform evictions until we haven't.
+// Kind of a hack: To avoid including any time spent here
+// during an op in the per-op timing, we also update
+// a counter that will be subtracted out of the per-op timing.
+void dtr_preallocate(size_t size) {
+  STATS.track("dtr_preallocate");
+  time_t before = std::chrono::system_clock::now();
+  if (pool.has_memory_budget) {
+    while (current_memory() + size > pool.memory_budget) {
+      pool.evict();
+    }
   }
+  time_t after = std::chrono::system_clock::now();
+  PREALLOC_TIME += (after - before);
 }
 
 ecn_ptr Rematerializer::get_ecn() {
@@ -547,15 +575,17 @@ MakeRawResult make_raw(const rematerialize_function_t& remat_f,
     s->pool->lock();
   }
   Tensors raw_inputs = uncheckpoint(inputs);
+  PREALLOC_TIME = duration_t::zero();;
   time_t pre = std::chrono::system_clock::now();
   auto raw_outputs = remat_f(raw_inputs);
   time_t post = std::chrono::system_clock::now();
-  pool.auto_evict();
+  // pool.auto_evict();
   base_compute_time_ += (post - pre).count();
   std::vector<intrusive_ptr<External>> outputs;
   std::vector<int> aliases;
   weaks weak_outputs;
-  auto remat = intrusive_ptr<Rematerializer>::make(Unsafe(), remat_f, inputs, post - pre);
+  auto remat = intrusive_ptr<Rematerializer>::make(Unsafe(), remat_f, inputs, (post - pre) - PREALLOC_TIME);
+  PREALLOC_TIME = duration_t::zero();
 
   for (const Tensor& t : raw_outputs) {
     intrusive_ptr<AliasPool> alias_pool;

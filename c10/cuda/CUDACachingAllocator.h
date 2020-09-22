@@ -105,6 +105,7 @@ struct SegmentInfo {
   std::vector<BlockInfo> blocks;
 };
 
+C10_CUDA_API void register_dtr_callback(void (*callback)(size_t));
 C10_CUDA_API void* raw_alloc(size_t nbytes);
 C10_CUDA_API void* raw_alloc_with_stream(size_t nbytes, cudaStream_t stream);
 C10_CUDA_API void raw_delete(void* ptr);

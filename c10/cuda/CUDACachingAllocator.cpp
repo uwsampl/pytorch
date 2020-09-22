@@ -25,6 +25,11 @@ C10_DEFINE_REGISTRY(FreeCudaMemoryCallbacksRegistry, FreeMemoryCallback);
 namespace cuda {
 namespace CUDACachingAllocator {
 
+void (*dtr_callback)(size_t) = nullptr;
+void register_dtr_callback(void (*callback)(size_t)) {
+  dtr_callback = callback;
+}
+
 //
 // Yet another caching allocator for CUDA device allocations.
 //
@@ -213,6 +218,12 @@ class DeviceCachingAllocator {
 
   Block* malloc(int device, size_t size, cudaStream_t stream)
   {
+    // tell DTR that we are about to allocate size
+    if (dtr_callback) {
+      dtr_callback(size);
+    }
+
+    // start allocation
     std::unique_lock<std::recursive_mutex> lock(mutex);
 
     // process outstanding cudaEvents
@@ -580,6 +591,8 @@ class DeviceCachingAllocator {
       return StatType::LARGE_POOL;
     } else {
       AT_ERROR("get_stat_type_for_pool: invalid pool");
+      // to avoid compiler error
+      return StatType::LARGE_POOL;
     }
   }
 
@@ -591,6 +604,8 @@ class DeviceCachingAllocator {
       return remaining > kSmallSize;
     } else {
       AT_ERROR("should_split: invalid pool");
+      // to avoid compiler error
+      return false;
     }
   }
 
