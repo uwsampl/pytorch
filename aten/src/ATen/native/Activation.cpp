@@ -835,4 +835,58 @@ Tensor& log_sigmoid_backward_out_cpu(
 DEFINE_DISPATCH(GeluKernel);
 DEFINE_DISPATCH(GeluBackwardKernel);
 
+std::vector<Tensor> split_with_sizes(const Tensor& self, IntArrayRef split_sizes, int64_t dim) {
+  TORCH_CHECK(self.dim() != 0, "split expects at least a 1-dimensional tensor");
+  int64_t dim_size = self.size(dim);
+  int64_t num_splits = split_sizes.size();
+  std::vector<Tensor> splits(num_splits);
+  int64_t start_idx = 0;
+  int64_t i;
+
+  for (i = 0; i < num_splits; ++i) {
+    auto length = split_sizes[i];
+    TORCH_CHECK(length >= 0,
+             "split_with_sizes expects split_sizes have only non-negative ",
+             "entries, but got split_sizes=", split_sizes);
+    splits[i] = self.narrow(dim, start_idx, length);
+    start_idx += length;
+  }
+  TORCH_CHECK(start_idx == dim_size,
+           "split_with_sizes expects split_sizes to sum exactly to ", dim_size,
+           " (input tensor's size at dimension ", dim, "), ", "but got split_sizes=", split_sizes);
+  return splits;
+}
+
+Tensor split_backward(c10::ArrayRef<Tensor> grads,
+                      int64_t split_size, int64_t dim, IntArrayRef sizes, const at::TensorOptions &options) {
+  dim = at::maybe_wrap_dim(dim, sizes.size());
+  int64_t dim_size = sizes[dim];
+  int64_t num_splits = grads.size();
+  std::vector<int64_t> split_sizes(num_splits, split_size);
+  split_sizes[num_splits - 1] = split_size - (split_size * num_splits - dim_size);
+  return at::native::split_with_sizes_backward(grads, split_sizes, dim, sizes, options);
+}
+
+Tensor split_with_sizes_backward(c10::ArrayRef<Tensor> grads,
+                                 IntArrayRef split_sizes, int64_t dim, IntArrayRef sizes, const at::TensorOptions &options) {
+  dim = at::maybe_wrap_dim(dim, sizes.size());
+
+  // it's possible some of the grads are not defined (represents tensors of all 0s).
+  // Since at::cat can't handle those, let's define them
+  std::vector<Tensor> grads_all_defined(grads.size());
+  for (size_t j = 0; j < grads.size(); ++j) {
+    if (grads[j].defined()) {
+      grads_all_defined[j] = grads[j];
+    } else {
+      auto length = split_sizes[j];
+      auto grad_size = sizes.vec();
+      grad_size[dim] = length;
+      grads_all_defined[j] = at::zeros(grad_size, options);
+    }
+  }
+
+  auto ret =  at::cat(grads_all_defined, dim);
+  return ret;
+}
+
 }}  // namespace at::native
