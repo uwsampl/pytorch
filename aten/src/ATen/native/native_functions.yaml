@@ -1,5 +1,34 @@
 # See README.md in this directory for more guidance
 
+# convert a tensor to a checkpoint tensor.
+# if the input is already a checkpoint tensor,
+# checkpoint will fail while try_checkpoint will
+# simply return the input.
+- func: checkpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: try_checkpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: is_checkpoint(Tensor self) -> bool
+  variants: method
+
+# convert checkpointed tensor into normal tensor.
+# uncheckpoint assume the input is checkpointed and will fail otherwise.
+# try_uncheckpoint return the input if it is not checkpointed.
+- func: uncheckpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: try_uncheckpoint(Tensor self) -> Tensor
+  variants: method
+
+# deprecated. call try_uncheckpoint instead.
+- func: decheckpoint(Tensor self) -> Tensor
+  variants: method
+
+- func: pin(Tensor(a!) self) -> ()
+  variants: method
+
 # *********NB: _cast_* operators are DEPRECATED and will be removed
 # eventually. These were previously used before TorchScript IR supported
 # representing ScalarType's. They are now superseded by usage of
@@ -3939,6 +3968,8 @@
 
 - func: _has_compatible_shallow_copy_type(Tensor self, Tensor from) -> bool
   variants: function
+#  dispatch:
+#    DefaultBackend: _has_compatible_shallow_copy_type
 
 - func: _unique(Tensor self, bool sorted=True, bool return_inverse=False) -> (Tensor, Tensor)
   variants: function
@@ -4782,18 +4813,26 @@
   use_c10_dispatcher: hacky_wrapper_for_legacy_signatures
   variants: method
   device_guard: False
+  dispatch:
+    DefaultBackend: to 
 
 - func: to.device(Tensor self, Device device, ScalarType dtype, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None) -> Tensor
   variants: method
   device_guard: False
+  dispatch:
+    DefaultBackend: to 
 
 - func: to.dtype(Tensor self, ScalarType dtype, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None) -> Tensor
   variants: method
   device_guard: False
+  dispatch:
+    DefaultBackend: to 
 
 - func: to.other(Tensor self, Tensor other, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None) -> Tensor
   variants: method
   device_guard: False
+  dispatch:
+    DefaultBackend: to 
 
 - func: meshgrid(Tensor[] tensors) -> Tensor[]
 
@@ -5117,6 +5156,8 @@
 
 - func: bitwise_and.Tensor(Tensor self, Tensor other) -> Tensor
   variants: method, function
+  dispatch:
+    CPU, CUDA: bitwise_and
 
 - func: bitwise_and_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)
   variants: method
