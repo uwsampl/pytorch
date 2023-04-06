@@ -4,7 +4,6 @@
 #include <ATen/detail/CUDAHooksInterface.h>
 #include <ATen/NamedTensorUtils.h>
 #include <torch/library.h>
-
 #include <ATen/Config.h>
 namespace at {
 namespace native {
@@ -68,7 +67,12 @@ Tensor contiguous(const Tensor & self) {
   return contiguous(self, MemoryFormat::Contiguous);
 }
 
+Tensor checkpoint_contiguous(const Tensor& self, MemoryFormat memory_format);
+
 Tensor contiguous(const Tensor& self, MemoryFormat memory_format) {
+  if (self.is_checkpoint()) {
+    return checkpoint_contiguous(self, memory_format);
+  }
   if (self.is_contiguous(memory_format)) {
     return self;
   }

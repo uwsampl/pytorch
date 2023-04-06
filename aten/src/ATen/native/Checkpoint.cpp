@@ -36,6 +36,23 @@ Tensor& checkpoint_add_(Tensor& a, const Tensor& b, Scalar c) {
   return a;
 }
 
+Tensor checkpoint_transpose(const Tensor& a, long b, long c) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+      return {at::transpose(vec.at(0), b, c)};
+    };
+  return CheckpointTensorImpl::make("transpose", rt, {a})[0];
+}
+
+Tensor& checkpoint_transpose_(at::Tensor& a, long b, long c) {
+  mutate_function_t mt =
+    [=](const Tensors& vec) {
+      vec.at(0).transpose_(b, c);
+    };
+  CheckpointTensorImpl::mutate("transpose_", mt, {a}, {0});
+  return a;
+}
+
 Tensor checkpoint_mul(at::Tensor const& a, at::Tensor const& b) {
   rematerialize_function_t rt =
     [=](const Tensors& vec) -> Tensors {
@@ -1242,6 +1259,14 @@ Tensor checkpoint_bmm(const Tensor& self, const Tensor& mat2) {
     return {at::bmm(vec.at(0), vec.at(1))};
   };
   return CheckpointTensorImpl::make("bmm", rt, {self, mat2})[0];
+}
+
+Tensor checkpoint_contiguous(const Tensor& self, MemoryFormat memory_format) {
+  rematerialize_function_t rt =
+    [=](const Tensors& vec) -> Tensors {
+    return {contiguous(vec.at(0))};
+  };
+  return CheckpointTensorImpl::make("contiguous", rt, {self})[0];
 }
 
 Tensor checkpoint__softmax(const Tensor& self, long dim, bool half_to_float) {

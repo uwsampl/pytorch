@@ -3426,6 +3426,10 @@
   use_c10_dispatcher: full
   variants: function, method
   device_guard: False
+  dispatch:
+    CPU: transpose
+    CUDA: transpose
+    Checkpoint: checkpoint_transpose
 
 - func: transpose.Dimname(Tensor(a) self, Dimname dim0, Dimname dim1) -> Tensor(a)
   variants: function, method
@@ -3441,6 +3445,10 @@
   use_c10_dispatcher: full
   variants: method
   device_guard: False
+  dispatch:
+    CPU: transpose_
+    CUDA: transpose_
+    Checkpoint: checkpoint_transpose_
 
 - func: _mkldnn_transpose_(Tensor(a!) self, int dim0, int dim1) -> Tensor(a!)
   use_c10_dispatcher: full

@@ -174,7 +174,7 @@ if sys.platform == 'win32' and sys.maxsize.bit_length() == 31:
 import platform
 python_min_version = (3, 6, 1)
 python_min_version_str = '.'.join((str(num) for num in python_min_version))
-python_max_version = (3, 9, 0)
+python_max_version = (3, 11, 0)
 python_max_version_str = '.'.join((str(num) for num in python_max_version))
 if sys.version_info < python_min_version or sys.version_info >= python_max_version:
     print("You are using Python {}. Python >={},<{} is required.".format(platform.python_version(),

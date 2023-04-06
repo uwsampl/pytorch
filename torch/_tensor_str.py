@@ -218,6 +218,7 @@ def _tensor_str_with_formatter(self, indent, summarize, formatter1, formatter2=N
     return '[' + tensor_str + ']'
 
 def _tensor_str(self, indent):
+    self = self.decheckpoint()
     if self.numel() == 0:
         return '[]'
 
