@@ -1,7 +1,7 @@
 # ---[ Generate and install header and cpp files
 include(../cmake/Codegen.cmake)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 
 # ---[ Vulkan code gen
 if(USE_VULKAN)
