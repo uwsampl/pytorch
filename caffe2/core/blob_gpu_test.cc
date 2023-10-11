@@ -6,6 +6,12 @@
 #include "caffe2/core/common_gpu.h"
 #include "caffe2/core/context_gpu.h"
 #include "caffe2/proto/caffe2_pb.h"
+#include "caffe2/core/init.h"
+#include "caffe2/core/logging.h"
+#include "caffe2/core/net.h"
+#include "caffe2/core/operator.h"
+#include "caffe2/utils/string_utils.h"
+#include "c10/util/string_utils.h"
 
 namespace caffe2 {
 namespace {
