@@ -159,6 +159,11 @@ struct NotifyHeapIndexChanged
 {
   void operator()(weak_intrusive_ptr<AliasPool> ap, size_t idx) {
   }
+};
+
+int64_t since_epoch(time_t tp)
+{
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(tp.time_since_epoch()).count();
 }
 
 void CheckpointPool::evict_kh()
@@ -168,7 +173,7 @@ void CheckpointPool::evict_kh()
   TORCH_CHECK(kh.size() > 0);
 
   time_t current_time = std::chrono::system_clock::now();
-  kh.advance_to(current_time);
+  kh.advance_to(since_epoch(current_time));
   
   while (!kh.empty())
   {
@@ -182,7 +187,7 @@ void CheckpointPool::evict_kh()
 
     if (ap_strong->evictable()) {
       auto real_cost = (__int128)(-ap_strong->cost(current_time));
-      auto aff_cost = aff(current_time);
+      auto aff_cost = aff(since_epoch(current_time));
 
       if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
       {
@@ -464,7 +469,7 @@ __int128 AliasPool::cost_slope() {
 }
 
 int64_t AliasPool::cost_x_offset() {
-  return -last_used_time.count();
+  return -since_epoch(last_used_time);
 }
 
 void External::release_resources() {

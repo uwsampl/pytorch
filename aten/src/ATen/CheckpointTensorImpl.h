@@ -158,8 +158,9 @@ using Tensors = std::vector<Tensor>;
 using rematerialize_function_t = std::function<Tensors(const Tensors&)>;
 using mutate_function_t = std::function<void(const Tensors&)>;
 
-using time_t = std::chrono::time_point<std::chrono::system_clock>;
-using duration_t = std::chrono::system_clock::duration;
+using duration_t = std::chrono::nanoseconds;
+using time_t = std::chrono::time_point<std::chrono::system_clock, duration_t>;
+
 struct CheckpointInfo {
   duration_t compute_cost;
   // @ZACH: Floating Point instability?
