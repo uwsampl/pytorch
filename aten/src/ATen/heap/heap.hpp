@@ -1,6 +1,6 @@
 #pragma once
 
-#include <variant>
+#include <c10/util/variant.h>
 
 #include "basic.hpp"
 #include "bag.hpp"
@@ -16,9 +16,9 @@ enum class KineticHeapImpl {
 
 
 template<KineticHeapImpl impl, typename T, typename NotifyIndexChanged>
-using KineticHeap = std::variant_alternative_t<
+using KineticHeap = c10::variant_alternative_t<
   (size_t)impl,
-  std::variant<
+  c10::variant<
     HeapImpls::Bag<T, NotifyIndexChanged>,
     HeapImpls::KineticMinHeap<T, false, NotifyIndexChanged>,
     HeapImpls::KineticMinHeap<T, true , NotifyIndexChanged>

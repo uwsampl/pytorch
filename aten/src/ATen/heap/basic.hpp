@@ -1,7 +1,7 @@
 #pragma once
 
 #include <random>
-#include <optional>
+#include <c10/util/Optional.h>
 #include <cassert>
 
 inline bool heap_is_root(size_t i) {
@@ -194,7 +194,7 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
     return distrib(rd) == 0;
   }
 
-  std::vector<std::optional<T>> arr;
+  std::vector<c10::optional<T>> arr;
 
   void swap(const size_t& l, const size_t& r) {
     std::swap(arr[l], arr[r]);
@@ -266,7 +266,7 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
     size_t child_idx_a = heap_left_child(idx);
     size_t child_idx_b = heap_right_child(idx);
     if ((!has_value(child_idx_a)) && (!has_value(child_idx_b))) {
-      arr[idx] = std::optional<T>();
+      arr[idx] = c10::optional<T>();
     } else {
       size_t child_idx = [&](){
         if (has_value(child_idx_a) && has_value(child_idx_b)) {
@@ -305,7 +305,7 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
 
   std::vector<T> values() {
     std::vector<T> ret;
-    for (const std::optional<T>& ot : arr) {
+    for (const c10::optional<T>& ot : arr) {
       if (ot) {
         ret.push_back(ot.value());
       }

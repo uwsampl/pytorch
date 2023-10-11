@@ -4,7 +4,7 @@
 #include "aff_function.hpp"
 
 #include <cstdint>
-#include <optional>
+#include <c10/util/Optional.h>
 #include <cassert>
 #include <vector>
 #include <iostream>
@@ -258,7 +258,7 @@ private:
         size_t pidx = heap_parent(idx);
         assert(heap.has_value(pidx));
         const Node& p = heap[pidx];
-        std::optional<int64_t> break_time = n.f.ge_until(p.f);
+        c10::optional<int64_t> break_time = n.f.ge_until(p.f);
         if (break_time && break_time.value() <= time_) {
           fix(idx);
         } else if (cert_idx != -1 && break_time) {
