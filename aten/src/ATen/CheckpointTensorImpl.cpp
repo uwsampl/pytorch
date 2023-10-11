@@ -179,7 +179,7 @@ void CheckpointPool::evict_kh()
   {
     auto aff = kh.get_aff(0);
     auto ap = kh.pop();
-    auto ap_strong = least.lock();
+    auto ap_strong = ap.lock();
 
     if (!ap_strong.defined() || ap_strong->ecn) {
       continue;
@@ -267,7 +267,9 @@ void CheckpointPool::evict() {
   search_time_ += (post - pre).count();
 }
 
-CheckpointPool::CheckpointPool() { }
+CheckpointPool::CheckpointPool() {
+  kh = KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged>(since_epoch(std::chrono::system_clock::now()));
+}
 
 namespace native {
 
