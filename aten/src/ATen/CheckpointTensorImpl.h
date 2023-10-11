@@ -22,6 +22,8 @@
 #include <ATen/Tensor.h>
 #include <ATen/ATen.h>
 
+#include <ATen/heap/heap.hpp>
+
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 #define TORCH_CHECK(a, ...) // profile mode
@@ -255,6 +257,8 @@ struct AliasPool : intrusive_ptr_target {
   // if it is evicted, then hold the evicted tensor group.
   ecn_ptr ecn;
   double cost(time_t current_time);
+  __int128 cost_slope();
+  int64_t cost_x_offset();
   void evict();
   void register_external() {
     ++external_count;
@@ -437,9 +441,15 @@ struct CheckpointTensorImpl : TensorImpl {
   }
 };
 
+struct NotifyHeapIndexChanged;
+
+bool USE_KINETIC_HEAP = true;
+int AFF_REENTRY_THRESHOLD = 2;
+
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
+  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged> kh;
   std::vector<weak_intrusive_ptr<External>> exts;
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
@@ -450,6 +460,7 @@ struct CheckpointPool {
   bool has_memory_budget = false;
   long memory_budget;
   void evict();
+  void evict_kh();
   void auto_evict();
   void clear_checkpointpool();
   void add(const intrusive_ptr<AliasPool>&);

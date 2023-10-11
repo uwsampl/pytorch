@@ -155,7 +155,56 @@ void CheckpointPool::auto_evict() {
   }
 }
 
+struct NotifyHeapIndexChanged
+{
+  void operator()(weak_intrusive_ptr<AliasPool> ap, size_t idx) {
+  }
+}
+
+void CheckpointPool::evict_kh()
+{
+  time_t pre = std::chrono::system_clock::now();
+  STATS.track("CheckpointPool::evict_kh");
+  TORCH_CHECK(kh.size() > 0);
+
+  time_t current_time = std::chrono::system_clock::now();
+  kh.advance_to(current_time);
+  
+  while (!kh.empty())
+  {
+    auto aff = kh.get_aff(0);
+    auto ap = kh.pop();
+    auto ap_strong = least.lock();
+
+    if (!ap_strong.defined() || ap_strong->ecn) {
+      continue;
+    }
+
+    if (ap_strong->evictable()) {
+      auto real_cost = (__int128)(-ap_strong->cost(current_time));
+      auto aff_cost = aff(current_time);
+
+      if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
+      {
+        auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
+        kh.push(ap, new_aff);
+        continue;
+      }
+
+      TORCH_CHECK(ap_strong.defined());
+      ap_strong->evict();
+    }
+  }
+
+  time_t post = std::chrono::system_clock::now();
+  search_time_ += (post - pre).count();
+}
+
 void CheckpointPool::evict() {
+  if (USE_KINETIC_HEAP)
+  {
+    return evict_kh();
+  }
   time_t pre = std::chrono::system_clock::now();
   STATS.track("CheckpointPool::evict");
   TORCH_CHECK(aps.size() > 0);
@@ -402,6 +451,20 @@ double AliasPool::cost(time_t current_time) {
   time_t post = std::chrono::system_clock::now();
   cost_time_ += (post - pre).count();
   return ret;
+}
+
+__int128 AliasPool::cost_slope() {
+  auto cpi = head_remat->get_cpi();
+  auto ecns = neighbor_ecn();
+  for (const auto& necn : ecns) {
+    cpi = merge_cpi(cpi, get_t(necn));
+  }
+  auto ret = -((double)memory) / cpi.compute_cost.count();
+  return (__int128) ret;
+}
+
+int64_t AliasPool::cost_x_offset() {
+  return -last_used_time.count();
 }
 
 void External::release_resources() {
