@@ -450,7 +450,7 @@ int AFF_REENTRY_THRESHOLD = 2;
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
-  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged> kh;
+  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged> kh(since_epoch(std::chrono::system_clock::now()));
   std::vector<weak_intrusive_ptr<External>> exts;
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());

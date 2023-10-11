@@ -267,9 +267,7 @@ void CheckpointPool::evict() {
   search_time_ += (post - pre).count();
 }
 
-CheckpointPool::CheckpointPool() {
-  kh = KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged>(since_epoch(std::chrono::system_clock::now()));
-}
+CheckpointPool::CheckpointPool() {}
 
 namespace native {
 
