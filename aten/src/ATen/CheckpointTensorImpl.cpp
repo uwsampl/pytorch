@@ -9,6 +9,9 @@
 
 namespace at {
 
+bool USE_KINETIC_HEAP = true;
+int AFF_REENTRY_THRESHOLD = 2;
+
 using Clock = std::chrono::high_resolution_clock;
 using Time = Clock::time_point;
 using Duration = Clock::duration;
