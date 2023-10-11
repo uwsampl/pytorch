@@ -447,6 +447,8 @@ struct NotifyHeapIndexChanged;
 bool USE_KINETIC_HEAP = true;
 int AFF_REENTRY_THRESHOLD = 2;
 
+int64_t since_epoch(time_t tp);
+
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
