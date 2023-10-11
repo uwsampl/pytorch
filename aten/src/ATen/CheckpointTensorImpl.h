@@ -444,8 +444,8 @@ struct CheckpointTensorImpl : TensorImpl {
 
 struct NotifyHeapIndexChanged;
 
-bool USE_KINETIC_HEAP = true;
-int AFF_REENTRY_THRESHOLD = 2;
+inline bool USE_KINETIC_HEAP = true;
+inline int AFF_REENTRY_THRESHOLD = 2;
 
 int64_t since_epoch(time_t tp);
 
