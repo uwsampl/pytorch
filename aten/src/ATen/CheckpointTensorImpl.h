@@ -452,7 +452,7 @@ int64_t since_epoch(time_t tp);
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
-  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged> kh(since_epoch(std::chrono::system_clock::now()));
+  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged> kh;
   std::vector<weak_intrusive_ptr<External>> exts;
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
@@ -467,7 +467,7 @@ struct CheckpointPool {
   void auto_evict();
   void clear_checkpointpool();
   void add(const intrusive_ptr<AliasPool>&);
-  CheckpointPool();
+  CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {};
 };
 
 inline CheckpointTensorImpl* get_cpti(const Tensor& t) {

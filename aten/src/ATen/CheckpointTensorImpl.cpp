@@ -267,8 +267,6 @@ void CheckpointPool::evict() {
   search_time_ += (post - pre).count();
 }
 
-CheckpointPool::CheckpointPool() {}
-
 namespace native {
 
 Tensor checkpoint(const Tensor& t) {
