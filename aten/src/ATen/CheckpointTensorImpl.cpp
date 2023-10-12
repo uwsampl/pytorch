@@ -35,6 +35,32 @@ struct LogProfiler {
   }
 };
 
+std::ostream&
+operator<<( std::ostream& dest, __int128_t value )
+{
+    std::ostream::sentry s( dest );
+    if ( s ) {
+        __uint128_t tmp = value < 0 ? -value : value;
+        char buffer[ 128 ];
+        char* d = std::end( buffer );
+        do
+        {
+            -- d;
+            *d = "0123456789"[ tmp % 10 ];
+            tmp /= 10;
+        } while ( tmp != 0 );
+        if ( value < 0 ) {
+            -- d;
+            *d = '-';
+        }
+        int len = std::end( buffer ) - d;
+        if ( dest.rdbuf()->sputn( d, len ) != len ) {
+            dest.setstate( std::ios_base::badbit );
+        }
+    }
+    return dest;
+}
+
 struct PerfStats;
 
 struct Timer {
@@ -157,9 +183,9 @@ long cost_time_ = 0;
 
 CheckpointPool pool;
 
-CheckpointPool::CheckpointPool : kh((since_epoch(std::chrono::system_clock::now()))) {
+CheckpointPool::CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {
   if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << (int)this << " new " << kh.time() << std::endl;
+    LOG_PROFILER.log_file << (int64_t)this << " new " << kh.time() << std::endl;
   }
 }
 
@@ -169,7 +195,7 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
       auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
       kh.push(weak_intrusive_ptr<AliasPool>(p), new_aff);
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << (int)this << " push " << (int)p.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+        LOG_PROFILER.log_file << (int64_t)this << " push " << (int64_t)p.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
       }
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
@@ -212,7 +238,7 @@ void CheckpointPool::evict_kh()
   time_t current_time = std::chrono::system_clock::now();
   kh.advance_to(since_epoch(current_time));
   if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << (int)this << " advance " << since_epoch(current_time) << std::endl;
+    LOG_PROFILER.log_file << (int64_t)this << " advance " << since_epoch(current_time) << std::endl;
   }
   
   while (!kh.empty())
@@ -222,7 +248,7 @@ void CheckpointPool::evict_kh()
     auto ap_strong = ap.lock();
 
     if (KH_LOG_PROFILE) {
-      LOG_PROFILER.log_file << (int)this << " pop " << (int)ap_strong.get() << std::endl;
+      LOG_PROFILER.log_file << (int64_t)this << " pop " << (int64_t)ap_strong.get() << std::endl;
     }
 
     if (!ap_strong.defined() || ap_strong->ecn) {
@@ -238,7 +264,7 @@ void CheckpointPool::evict_kh()
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
         kh.push(ap, new_aff);
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << (int)this << " push " << (int)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+          LOG_PROFILER.log_file << (int64_t)this << " push " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
         }
         continue;
       }
