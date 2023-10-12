@@ -13,6 +13,7 @@ namespace at {
 bool USE_KINETIC_HEAP = true;
 int AFF_REENTRY_THRESHOLD = 2;
 bool KH_LOG_PROFILE = true;
+double MEMORY_COEFF = 65535.0;
 
 using Clock = std::chrono::high_resolution_clock;
 using Time = Clock::time_point;
@@ -180,6 +181,13 @@ long base_compute_time_ = 0;
 long remat_compute_time_ = 0;
 long search_time_ = 0;
 long cost_time_ = 0;
+
+
+double CheckpointInfo::cost(size_t memory, size_t staleness) const {
+  TORCH_CHECK(memory > 0);
+  TORCH_CHECK(staleness > 0);
+  return compute_cost.count() / (memory * MEMORY_COEFF * staleness);
+}
 
 CheckpointPool pool;
 
@@ -537,7 +545,7 @@ __int128 AliasPool::cost_slope() {
   for (const auto& necn : ecns) {
     cpi = merge_cpi(cpi, get_t(necn));
   }
-  auto ret = -(memory * 65535.0) / cpi.compute_cost.count();
+  auto ret = -(memory * MEMORY_COEFF) / cpi.compute_cost.count();
   return (__int128) ret;
 }
 

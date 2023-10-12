@@ -164,11 +164,7 @@ using time_t = std::chrono::time_point<std::chrono::system_clock, duration_t>;
 struct CheckpointInfo {
   duration_t compute_cost;
   // @ZACH: Floating Point instability?
-  double cost(size_t memory, size_t staleness) const {
-    TORCH_CHECK(memory > 0);
-    TORCH_CHECK(staleness > 0);
-    return compute_cost.count() / static_cast<double>(memory * staleness);
-  }
+  double cost(size_t memory, size_t staleness) const;
   CheckpointInfo(duration_t compute_cost) :
     compute_cost(compute_cost) {
   }
