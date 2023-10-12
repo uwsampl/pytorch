@@ -193,10 +193,11 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
   if (p->memory > 0 && (memory_count == 0 || !ignore_small_tensors || p->memory >= 0.01 * double(memory_sum/memory_count))) {
     if (USE_KINETIC_HEAP) {
       auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
-      kh.push(weak_intrusive_ptr<AliasPool>(p), new_aff);
+      auto weak_ptr = weak_intrusive_ptr<AliasPool>(p);
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << (int64_t)this << " push " << (int64_t)p.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+        LOG_PROFILER.log_file << (int64_t)this << " push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
       }
+      kh.push(std::move(weak_ptr), new_aff);
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
     }
@@ -245,11 +246,12 @@ void CheckpointPool::evict_kh()
   {
     auto aff = kh.get_aff(0);
     auto ap = kh.pop();
-    auto ap_strong = ap.lock();
 
     if (KH_LOG_PROFILE) {
-      LOG_PROFILER.log_file << (int64_t)this << " pop " << (int64_t)ap_strong.get() << std::endl;
+      LOG_PROFILER.log_file << (int64_t)this << " pop " << (int64_t)ap._unsafe_get_target() << std::endl;
     }
+
+    auto ap_strong = ap.lock();
 
     if (!ap_strong.defined() || ap_strong->ecn) {
       continue;
@@ -264,7 +266,7 @@ void CheckpointPool::evict_kh()
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
         kh.push(ap, new_aff);
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << (int64_t)this << " push " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+          LOG_PROFILER.log_file << (int64_t)this << " repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
         }
         continue;
       }
