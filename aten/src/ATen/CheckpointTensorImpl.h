@@ -467,7 +467,7 @@ struct CheckpointPool {
   void auto_evict();
   void clear_checkpointpool();
   void add(const intrusive_ptr<AliasPool>&);
-  CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {};
+  CheckpointPool();
 };
 
 inline CheckpointTensorImpl* get_cpti(const Tensor& t) {
