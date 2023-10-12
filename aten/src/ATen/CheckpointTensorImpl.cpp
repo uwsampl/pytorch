@@ -537,7 +537,7 @@ __int128 AliasPool::cost_slope() {
   for (const auto& necn : ecns) {
     cpi = merge_cpi(cpi, get_t(necn));
   }
-  auto ret = -((double)memory) / cpi.compute_cost.count();
+  auto ret = -(memory * 65535.0) / cpi.compute_cost.count();
   return (__int128) ret;
 }
 
