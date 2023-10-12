@@ -139,7 +139,12 @@ long cost_time_ = 0;
 CheckpointPool pool;
 void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
   if (p->memory > 0 && (memory_count == 0 || !ignore_small_tensors || p->memory >= 0.01 * double(memory_sum/memory_count))) {
-    aps.push_back(weak_intrusive_ptr<AliasPool>(p));
+    if (USE_KINETIC_HEAP) {
+      auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
+      kh.push(weak_intrusive_ptr<AliasPool>(p), new_aff);
+    } else {
+      aps.push_back(weak_intrusive_ptr<AliasPool>(p));
+    }
   }
 }
 
