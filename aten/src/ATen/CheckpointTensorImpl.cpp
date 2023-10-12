@@ -199,8 +199,8 @@ void CheckpointPool::evict_kh()
         continue;
       }
 
-      TORCH_CHECK(ap_strong.defined());
       ap_strong->evict();
+      break;
     }
   }
 
