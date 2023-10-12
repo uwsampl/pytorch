@@ -194,10 +194,10 @@ void CheckpointPool::evict_kh()
     }
 
     if (ap_strong->evictable()) {
-      auto real_cost = (__int128)(-ap_strong->cost(current_time));
+      auto real_cost = (__int128)(-1.0 / ap_strong->cost(current_time));
       auto aff_cost = aff(since_epoch(current_time));
 
-      if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
+      if (real_cost * AFF_REENTRY_THRESHOLD < aff_cost)
       {
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
         kh.push(ap, new_aff);
