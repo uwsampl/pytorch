@@ -559,6 +559,10 @@ void AliasPool::evict() {
         }
       }
       ptr_to_idx.erase(it);
+    } else {
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << "mismatch3 " << pool.kh.has_value(idx) ? (int64_t)pool.kh[idx]._unsafe_get_target() : -1 << " " << (int64_t) this << std::endl;
+      }
     }
   }
 }
@@ -617,6 +621,10 @@ void AliasPool::release_resources() {
         }
       }
       ptr_to_idx.erase(it);
+    } else {
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << "mismatch4 " << pool.kh.has_value(idx) ? (int64_t)pool.kh[idx]._unsafe_get_target() : -1 << " " << (int64_t) this << std::endl;
+      }
     }
   }
   tensors.clear();
