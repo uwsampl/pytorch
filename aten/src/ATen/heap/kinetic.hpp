@@ -39,24 +39,26 @@ public:
     return heap.empty();
   }
 
-  void push(const T& t, const AffFunction& f) {
-    heap.push(Node{t, f});
+  size_t push(const T& t, const AffFunction& f) {
+    auto result = heap.push(Node{t, f});
     recert();
     invariant();
+    return result;
   }
 
-  void push(T&& t, const AffFunction& f) {
-    heap.push(Node{std::forward<T>(t), f});
+  size_t push(T&& t, const AffFunction& f) {
+    auto result = heap.push(Node{std::forward<T>(t), f});
     recert();
     invariant();
+    return result;
   }
 
-  void insert(const T& t, const AffFunction &f) {
-      push(t, f);
+  size_t insert(const T& t, const AffFunction &f) {
+      return push(t, f);
   }
 
-  void insert(T&& t, const AffFunction &f) {
-      push(std::forward<T>(t), f);
+  size_t insert(T&& t, const AffFunction &f) {
+      return push(std::forward<T>(t), f);
   }
 
   T& peek() {
@@ -85,6 +87,10 @@ public:
 
   const T& operator[](size_t i) const {
     return heap[i].t;
+  }
+
+  bool has_value(size_t i) const {
+    return heap.has_value(i);
   }
 
   size_t min_idx() const {

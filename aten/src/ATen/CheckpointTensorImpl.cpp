@@ -7,6 +7,7 @@
 #include <random>
 #include <cmath>
 #include <fstream>
+#include <unordered_map>
 
 namespace at {
 
@@ -24,15 +25,17 @@ struct LogProfiler {
   std::fstream log_file;
 
   LogProfiler() {
-    std::string bs = "/home/marisa/zblogs/";
-    int i = 0;
-    for (; i < 100; ++i) {
-      std::ifstream check(bs + std::to_string(i) + ".log");
-      if (!check.good()) {
-        break;
+    if (KH_LOG_PROFILE) {
+      std::string bs = "/home/marisa/zblogs/";
+      int i = 0;
+      for (; i < 100; ++i) {
+        std::ifstream check(bs + std::to_string(i) + ".log");
+        if (!check.good()) {
+          break;
+        }
       }
+      log_file = std::fstream(bs + std::to_string(i) + ".log", std::ios::out);
     }
-    log_file = std::fstream(bs + std::to_string(i) + ".log", std::ios::out);
   }
 };
 
@@ -182,7 +185,6 @@ long remat_compute_time_ = 0;
 long search_time_ = 0;
 long cost_time_ = 0;
 
-
 double CheckpointInfo::cost(size_t memory, size_t staleness) const {
   TORCH_CHECK(memory > 0);
   TORCH_CHECK(staleness > 0);
@@ -201,7 +203,8 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
       if (KH_LOG_PROFILE) {
         LOG_PROFILER.log_file << " push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
       }
-      kh.push(std::move(weak_ptr), new_aff);
+      auto idx = kh.push(std::move(weak_ptr), new_aff);
+      ptr_to_idx.insert(std::make_pair((int64_t)p.get(), idx));
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
     }
@@ -223,9 +226,13 @@ void CheckpointPool::auto_evict() {
   }
 }
 
+std::unordered_map<int64_t, size_t> ptr_to_idx;
+
 struct NotifyHeapIndexChanged
 {
   void operator()(weak_intrusive_ptr<AliasPool> ap, size_t idx) {
+    auto k = (int64_t)ap._unsafe_get_target();
+    ptr_to_idx.insert(std::make_pair(k, idx));
   }
 };
 
@@ -268,6 +275,7 @@ void CheckpointPool::evict_kh()
       {
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
         kh.push(ap, new_aff);
+        ptr_to_idx.insert(std::make_pair((int64_t)ap_strong.get(), idx));
         if (KH_LOG_PROFILE) {
           LOG_PROFILER.log_file << " repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
         }
@@ -552,6 +560,33 @@ __int128 AliasPool::cost_slope() {
 
 int64_t AliasPool::cost_x_offset() {
   return -since_epoch(last_used_time);
+}
+
+void AliasPool::release_external() {
+  --external_count;
+  if (external_count == 0) {
+    if (lock_count > 0) {return;}
+    TORCH_CHECK(lock_count == 0);
+    if (memory > 0 && (!ecn) && head_remat) {
+      evict();
+    }
+  }
+}
+
+void AliasPool::release_resources() final {
+  if (USE_KINETIC_HEAP) {
+    auto& it = ptr_to_idx.find((int64_t) this);
+    if (it != ptr_to_idx.end()) {
+      auto idx = (*it).second;
+      if (pool.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+        pool.kh.remove(idx);
+      }
+      ptr_to_idx.erase(it);
+    }
+  }
+  tensors.clear();
+  neighbors.clear();
+  head_remat.reset();
 }
 
 void External::release_resources() {

@@ -260,25 +260,12 @@ struct AliasPool : intrusive_ptr_target {
   void register_external() {
     ++external_count;
   }
-  void release_external() {
-    --external_count;
-    if (external_count == 0) {
-      if (lock_count > 0) {return;}
-      TORCH_CHECK(lock_count == 0);
-      if (memory > 0 && (!ecn) && head_remat) {
-        evict();
-      }
-    }
-  }
+  void release_external();
   // if it was evicted, refresh it. otherwise do nothing.
   // have to check so, because when we rematerialize a single tensor in an aliaspool,
   // we will set it to non-evicted, and when we rematerialize it's tensor they will also reset this.
   void set_not_evicted(const intrusive_ptr<AliasPool>& self);
-  void release_resources() final {
-    tensors.clear();
-    neighbors.clear();
-    head_remat.reset();
-  }
+  void release_resources() final;
 };
 
 struct CheckpointTensorCell : intrusive_ptr_target {

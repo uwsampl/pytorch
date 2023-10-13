@@ -210,7 +210,7 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
     return size() == 0;
   }
 
-  void hang(T&& t, const size_t& idx) {
+  size_t hang(T&& t, const size_t& idx) {
     if (!(idx < arr.size())) {
       arr.resize(idx + 1);
     }
@@ -221,26 +221,29 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
         T t0 = std::move(arr[idx].value());
         arr[idx] = std::move(t);
         this->notify_changed(idx);
-        hang(std::move(t0), child_idx);
+        return hang(std::move(t0), child_idx);
       }
       else {
-        hang(std::forward<T>(t), child_idx);
+        return hang(std::forward<T>(t), child_idx);
       }
     } else {
       arr[idx] = std::forward<T>(t);
       this->notify_changed(idx);
+      return idx;
     }
   }
 
-  void push(const T& t) {
+  size_t push(const T& t) {
     T t_ = t;
-    hang(std::move(t_), 0);
+    auto result = hang(std::move(t_), 0);
     ++size_;
+    return result;
   }
 
-  void push(T&& t) {
-    hang(std::forward<T>(t), 0);
+  size_t push(T&& t) {
+    auto result = hang(std::forward<T>(t), 0);
     ++size_;
+    return result;
   }
 
   bool has_value(const size_t& idx) const {
