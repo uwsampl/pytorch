@@ -193,6 +193,8 @@ double CheckpointInfo::cost(size_t memory, size_t staleness) const {
 
 CheckpointPool pool;
 
+std::unordered_map<int64_t, size_t> ptr_to_idx;
+
 CheckpointPool::CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {}
 
 void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
@@ -225,8 +227,6 @@ void CheckpointPool::auto_evict() {
     }
   }
 }
-
-std::unordered_map<int64_t, size_t> ptr_to_idx;
 
 struct NotifyHeapIndexChanged
 {
@@ -573,12 +573,12 @@ void AliasPool::release_external() {
   }
 }
 
-void AliasPool::release_resources() final {
+void AliasPool::release_resources() {
   if (USE_KINETIC_HEAP) {
-    auto& it = ptr_to_idx.find((int64_t) this);
+    auto it = ptr_to_idx.find((int64_t) this);
     if (it != ptr_to_idx.end()) {
       auto idx = (*it).second;
-      if (pool.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+      if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
         pool.kh.remove(idx);
       }
       ptr_to_idx.erase(it);
