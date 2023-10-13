@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <limits>
-#include <optional>
+#include <c10/util/Optional.h>
 #include <iostream>
 #include <cassert>
 
@@ -48,45 +48,45 @@ struct AffFunction {
     return ret;
   }
 
-  std::optional<shift_t> lt_until(const aff_t& rhs) const {
+  c10::optional<shift_t> lt_until(const aff_t& rhs) const {
     auto postcondition_check = [&](shift_t val) {
       assert((*this)(val - 1) < rhs);
       assert(!((*this)(val) < rhs));
-      return std::optional<shift_t>(val);
+      return c10::optional<shift_t>(val);
     };
     if (slope <= 0) {
-      return std::optional<shift_t>();
+      return c10::optional<shift_t>();
     } else {
       assert(slope > 0);
       return postcondition_check(-x_shift + div_ceiling(rhs, slope));
     }
   }
 
-  std::optional<shift_t> lt_until(const AffFunction& rhs) const {
+  c10::optional<shift_t> lt_until(const AffFunction& rhs) const {
     auto postcondition_check = [&](shift_t val) {
       assert((*this)(val - 1) < rhs(val - 1));
       assert(!((*this)(val) < rhs(val)));
-      return std::optional<shift_t>(val);
+      return c10::optional<shift_t>(val);
     };
     shift_t x_delta = rhs.x_shift - x_shift;
     aff_t y_delta = rhs.slope * x_delta;
     slope_t slope_delta = slope - rhs.slope;
     if (slope_delta <= 0) {
-      return std::optional<shift_t>();
+      return c10::optional<shift_t>();
     } else {
       assert(slope_delta > 0);
       return postcondition_check(-x_shift + div_ceiling(y_delta, slope_delta));
     }
   }
 
-  std::optional<shift_t> le_until(const aff_t& rhs) const {
+  c10::optional<shift_t> le_until(const aff_t& rhs) const {
     auto postcondition_check = [&](shift_t val) {
       assert((*this)(val - 1) <= rhs);
       assert(!((*this)(val) <= rhs));
-      return std::optional<shift_t>(val);
+      return c10::optional<shift_t>(val);
     };
     if (slope <= 0) {
-      return std::optional<aff_t>();
+      return c10::optional<aff_t>();
     } else {
       assert(slope > 0);
       return postcondition_check(-x_shift + div_ceiling(rhs + 1, slope));
@@ -101,11 +101,11 @@ struct AffFunction {
   //     forall x' > x,
   //     !((*this)(x') <= rhs(x'))
   // return None if such x does not exist.
-  std::optional<shift_t> le_until(const AffFunction& rhs) const {
+  c10::optional<shift_t> le_until(const AffFunction& rhs) const {
     auto postcondition_check = [&](shift_t val) {
       assert((*this)(val - 1) <= rhs(val - 1));
       assert(!((*this)(val) <= rhs(val)));
-      return std::optional<shift_t>(val);
+      return c10::optional<shift_t>(val);
     };
     // let's assume the current time is -x_shift,
     //   so eval(cur_time) == 0, and rhs.eval(cur_time) == rhs.slope * x_delta.
@@ -115,7 +115,7 @@ struct AffFunction {
     // note that x_delta is based on rhs, but slope_delta is based on *this.
     slope_t slope_delta = slope - rhs.slope;
     if (slope_delta <= 0) {
-      return std::optional<shift_t>();
+      return c10::optional<shift_t>();
     } else {
       assert(slope_delta > 0);
       return postcondition_check(-x_shift + div_ceiling(y_delta + 1, slope_delta));
@@ -125,39 +125,39 @@ struct AffFunction {
   // we dont have symmetry here and ge_until. sad.
   // note that I havent give much thought & test to the rounding mode,
   // therefore it is highly likely wrong.
-  std::optional<shift_t> gt_until(const aff_t& rhs) const {
+  c10::optional<shift_t> gt_until(const aff_t& rhs) const {
     auto postcondition_check = [&](shift_t val) {
       assert((*this)(val - 1) > rhs);
       assert(!((*this)(val) > rhs));
-      return std::optional<shift_t>(val);
+      return c10::optional<shift_t>(val);
     };
     if (slope >= 0) {
-      return std::optional<shift_t>();
+      return c10::optional<shift_t>();
     } else {
       assert(slope < 0);
       return postcondition_check(-x_shift + div_ceiling(-rhs, -slope));
     }
   }
 
-  std::optional<shift_t> gt_until(const AffFunction& rhs) const {
+  c10::optional<shift_t> gt_until(const AffFunction& rhs) const {
     return rhs.lt_until(*this);
   }
 
-  std::optional<shift_t> ge_until(const aff_t& rhs) const {
+  c10::optional<shift_t> ge_until(const aff_t& rhs) const {
     auto postcondition_check = [&](shift_t val) {
       assert((*this)(val - 1) >= rhs);
       assert(!((*this)(val) >= rhs));
-      return std::optional<shift_t>(val);
+      return c10::optional<shift_t>(val);
     };
     if (slope >= 0) {
-      return std::optional<shift_t>();
+      return c10::optional<shift_t>();
     } else {
       assert(slope < 0);
       return postcondition_check(-x_shift + div_ceiling((-rhs) + 1, -slope));
     }
   }
 
-  std::optional<shift_t> ge_until(const AffFunction& rhs) const {
+  c10::optional<shift_t> ge_until(const AffFunction& rhs) const {
     return rhs.le_until(*this);
   }
 };
