@@ -314,7 +314,7 @@ private:
   //   it is fine, as we will call fix on them individually.
   //   in general it is not fine though.
   void fix(const size_t& idx) {
-    heap.flow(idx, false);
+    heap.flow(idx, true);
   }
 };
 
