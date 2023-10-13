@@ -274,7 +274,7 @@ void CheckpointPool::evict_kh()
       if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
       {
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
-        kh.push(ap, new_aff);
+        auto idx = kh.push(ap, new_aff);
         ptr_to_idx.insert(std::make_pair((int64_t)ap_strong.get(), idx));
         if (KH_LOG_PROFILE) {
           LOG_PROFILER.log_file << " repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
