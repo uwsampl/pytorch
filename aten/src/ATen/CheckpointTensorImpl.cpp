@@ -259,9 +259,16 @@ void CheckpointPool::evict_kh()
 
     auto ap_strong = ap.lock();
 
-    if (!ap_strong.defined() || ap_strong->ecn) {
+    if (!ap_strong.defined()) {
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << " popae " << (int64_t)ap._unsafe_get_target() << std::endl;
+        LOG_PROFILER.log_file << " popae1 " << (int64_t)ap._unsafe_get_target() << std::endl;
+      }
+      continue;
+    }
+
+    if (ap_strong->ecn) {
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << " popae2 " << (int64_t)ap._unsafe_get_target() << std::endl;
       }
       continue;
     }
