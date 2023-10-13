@@ -427,6 +427,8 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
+  kh.clear();
+  ptr_to_idx.clear();
 }
 
 void unset_memory_budget() {
