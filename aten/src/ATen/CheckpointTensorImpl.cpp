@@ -205,8 +205,7 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
       if (KH_LOG_PROFILE) {
         LOG_PROFILER.log_file << " push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
       }
-      auto idx = kh.push(std::move(weak_ptr), new_aff);
-      ptr_to_idx.insert(std::make_pair((int64_t)p.get(), idx));
+      kh.push(std::move(weak_ptr), new_aff);
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
     }
@@ -274,8 +273,7 @@ void CheckpointPool::evict_kh()
       if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
       {
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
-        auto idx = kh.push(ap, new_aff);
-        ptr_to_idx.insert(std::make_pair((int64_t)ap_strong.get(), idx));
+        kh.push(ap, new_aff);
         if (KH_LOG_PROFILE) {
           LOG_PROFILER.log_file << " repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
         }

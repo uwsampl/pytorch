@@ -39,26 +39,24 @@ public:
     return heap.empty();
   }
 
-  size_t push(const T& t, const AffFunction& f) {
-    auto result = heap.push(Node{t, f});
+  void push(const T& t, const AffFunction& f) {
+    heap.push(Node{t, f});
     recert();
     invariant();
-    return result;
   }
 
-  size_t push(T&& t, const AffFunction& f) {
-    auto result = heap.push(Node{std::forward<T>(t), f});
+  void push(T&& t, const AffFunction& f) {
+    heap.push(Node{std::forward<T>(t), f});
     recert();
     invariant();
-    return result;
   }
 
-  size_t insert(const T& t, const AffFunction &f) {
-      return push(t, f);
+  void insert(const T& t, const AffFunction &f) {
+      push(t, f);
   }
 
-  size_t insert(T&& t, const AffFunction &f) {
-      return push(std::forward<T>(t), f);
+  void insert(T&& t, const AffFunction &f) {
+      push(std::forward<T>(t), f);
   }
 
   T& peek() {
