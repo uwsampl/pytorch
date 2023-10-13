@@ -203,7 +203,7 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
       auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
       auto weak_ptr = weak_intrusive_ptr<AliasPool>(p);
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << " push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+        LOG_PROFILER.log_file << "push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
       }
       kh.push(std::move(weak_ptr), new_aff);
     } else {
@@ -249,7 +249,7 @@ void CheckpointPool::evict_kh()
   time_t current_time = std::chrono::system_clock::now();
   kh.advance_to(since_epoch(current_time));
   if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << " advance " << since_epoch(current_time) << std::endl;
+    LOG_PROFILER.log_file << "advance " << since_epoch(current_time) << std::endl;
   }
   
   while (!kh.empty())
@@ -261,14 +261,14 @@ void CheckpointPool::evict_kh()
 
     if (!ap_strong.defined()) {
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << " popae1 " << (int64_t)ap._unsafe_get_target() << std::endl;
+        LOG_PROFILER.log_file << "popae1 " << (int64_t)ap._unsafe_get_target() << std::endl;
       }
       continue;
     }
 
     if (ap_strong->ecn) {
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << " popae2 " << (int64_t)ap._unsafe_get_target() << std::endl;
+        LOG_PROFILER.log_file << "popae2 " << (int64_t)ap._unsafe_get_target() << std::endl;
       }
       continue;
     }
@@ -282,19 +282,19 @@ void CheckpointPool::evict_kh()
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
         kh.push(ap, new_aff);
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << " repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+          LOG_PROFILER.log_file << "repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
         }
         continue;
       }
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << " pope " << (int64_t)ap._unsafe_get_target() << std::endl;
+        LOG_PROFILER.log_file << "pope " << (int64_t)ap._unsafe_get_target() << std::endl;
       }
       ap_strong->evict();
       break;
     }
 
     if (KH_LOG_PROFILE) {
-      LOG_PROFILER.log_file << " popue " << (int64_t)ap._unsafe_get_target() << std::endl;
+      LOG_PROFILER.log_file << "popue " << (int64_t)ap._unsafe_get_target() << std::endl;
     }
   }
 
@@ -436,7 +436,7 @@ void clear_checkpointpool() {
   }
   auto current = since_epoch(std::chrono::system_clock::now());
   if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << " clear " << current << std::endl;
+    LOG_PROFILER.log_file << "clear " << current << std::endl;
   }
   pool.kh.clear(current);
   ptr_to_idx.clear();
@@ -550,9 +550,13 @@ void AliasPool::evict() {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << " remove " << (int64_t) this << std::endl;
+          LOG_PROFILER.log_file << "remove " << (int64_t) this << std::endl;
         }
         pool.kh.remove(idx);
+      } else {
+        if (KH_LOG_PROFILE) {
+          LOG_PROFILER.log_file << "mismatch1 " << pool.kh.has_value(idx) ? (int64_t)pool.kh[idx]._unsafe_get_target() : -1 << " " << (int64_t) this << std::endl;
+        }
       }
       ptr_to_idx.erase(it);
     }
@@ -604,9 +608,13 @@ void AliasPool::release_resources() {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << " remove " << (int64_t) this << std::endl;
+          LOG_PROFILER.log_file << "remove " << (int64_t) this << std::endl;
         }
         pool.kh.remove(idx);
+      } else {
+        if (KH_LOG_PROFILE) {
+          LOG_PROFILER.log_file << "mismatch2 " << pool.kh.has_value(idx) ? (int64_t)pool.kh[idx]._unsafe_get_target() : -1 << " " << (int64_t) this << std::endl;
+        }
       }
       ptr_to_idx.erase(it);
     }
