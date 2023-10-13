@@ -427,7 +427,11 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
-  pool.kh.clear(since_epoch(std::chrono::system_clock::now()));
+  auto current = since_epoch(std::chrono::system_clock::now());
+  if (KH_LOG_PROFILE) {
+    LOG_PROFILER.log_file << " clear " << current << std::endl;
+  }
+  pool.kh.clear(current);
   ptr_to_idx.clear();
 }
 
@@ -538,6 +542,9 @@ void AliasPool::evict() {
     if (it != ptr_to_idx.end()) {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+        if (KH_LOG_PROFILE) {
+          LOG_PROFILER.log_file << " remove " << (int64_t) this << std::endl;
+        }
         pool.kh.remove(idx);
       }
       ptr_to_idx.erase(it);
@@ -589,6 +596,9 @@ void AliasPool::release_resources() {
     if (it != ptr_to_idx.end()) {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+        if (KH_LOG_PROFILE) {
+          LOG_PROFILER.log_file << " remove " << (int64_t) this << std::endl;
+        }
         pool.kh.remove(idx);
       }
       ptr_to_idx.erase(it);

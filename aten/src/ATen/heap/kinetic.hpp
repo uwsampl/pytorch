@@ -113,12 +113,8 @@ public:
   }
 
   void clear(int64_t time) {
-    while (!heap.empty()) {
-      heap.pop();
-    }
-    while (!cert_queue.empty()) {
-      cert_queue.pop();
-    }
+    heap.clear();
+    cert_queue.clear();
     pending_recert.clear();
     tmp.clear();
     time_ = time;
