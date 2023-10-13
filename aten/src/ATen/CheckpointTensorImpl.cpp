@@ -427,7 +427,7 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
-  kh.clear();
+  pool.kh.clear();
   ptr_to_idx.clear();
 }
 
