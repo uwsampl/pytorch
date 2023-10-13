@@ -427,7 +427,7 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
-  pool.kh.clear();
+  pool.kh.clear(since_epoch(std::chrono::system_clock::now()));
   ptr_to_idx.clear();
 }
 
