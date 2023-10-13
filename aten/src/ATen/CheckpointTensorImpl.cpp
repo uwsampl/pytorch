@@ -533,6 +533,16 @@ void AliasPool::evict() {
       cell->evict();
     }
   }
+  if (USE_KINETIC_HEAP) {
+    auto it = ptr_to_idx.find((int64_t) this);
+    if (it != ptr_to_idx.end()) {
+      auto idx = (*it).second;
+      if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+        pool.kh.remove(idx);
+      }
+      ptr_to_idx.erase(it);
+    }
+  }
 }
 
 double AliasPool::cost(time_t current_time) {
