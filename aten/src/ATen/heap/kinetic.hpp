@@ -315,7 +315,6 @@ private:
   //   in general it is not fine though.
   void fix(const size_t& idx) {
     heap.flow(idx, false);
-    NotifyIndexChanged()(n.t, idx);
   }
 };
 
