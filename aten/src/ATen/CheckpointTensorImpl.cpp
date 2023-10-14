@@ -231,7 +231,12 @@ struct NotifyHeapIndexChanged
 {
   void operator()(weak_intrusive_ptr<AliasPool> ap, size_t idx) {
     auto k = (int64_t)ap._unsafe_get_target();
-    ptr_to_idx.insert(std::make_pair(k, idx));
+    auto it = ptr_to_idx.find(k);
+    if (it == ptr_to_idx.end()) {
+      ptr_to_idx.insert(std::make_pair(k, idx));
+    } else {
+      (*it).second = idx;
+    }
   }
 };
 
