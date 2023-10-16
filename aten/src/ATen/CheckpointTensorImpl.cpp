@@ -555,19 +555,11 @@ void AliasPool::evict() {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "remove " << (int64_t) this << std::endl;
+          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << std::endl;
         }
         pool.kh.remove(idx);
-      } else {
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "mismatch1 " << (pool.kh.has_value(idx) ? (int64_t)pool.kh[idx]._unsafe_get_target() : -1) << " " << (int64_t) this << std::endl;
-        }
       }
       ptr_to_idx.erase(it);
-    } else {
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "mismatch3 " << (int64_t) this << std::endl;
-      }
     }
   }
 }
@@ -617,19 +609,11 @@ void AliasPool::release_resources() {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "remove " << (int64_t) this << std::endl;
+          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << std::endl;
         }
         pool.kh.remove(idx);
-      } else {
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "mismatch2 " << (pool.kh.has_value(idx) ? (int64_t)pool.kh[idx]._unsafe_get_target() : -1) << " " << (int64_t) this << std::endl;
-        }
       }
       ptr_to_idx.erase(it);
-    } else {
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "mismatch4 " << (int64_t) this << std::endl;
-      }
     }
   }
   tensors.clear();
