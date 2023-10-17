@@ -15,6 +15,7 @@ bool USE_KINETIC_HEAP = true;
 int AFF_REENTRY_THRESHOLD = 2;
 bool KH_LOG_PROFILE = true;
 double MEMORY_COEFF = 65535.0;
+bool KH_DISABLE_EAGER_SYNC = false;
 
 using Clock = std::chrono::high_resolution_clock;
 using Time = Clock::time_point;
@@ -230,13 +231,15 @@ void CheckpointPool::auto_evict() {
 struct NotifyHeapIndexChanged
 {
   void operator()(weak_intrusive_ptr<AliasPool> ap, size_t idx) {
-    auto k = (int64_t)ap._unsafe_get_target();
-    auto it = ptr_to_idx.find(k);
-    if (it == ptr_to_idx.end()) {
-      ptr_to_idx.insert(std::make_pair(k, idx));
-    } else {
-      (*it).second = idx;
-    }
+    if (!KH_DISABLE_EAGER_SYNC) {
+      auto k = (int64_t)ap._unsafe_get_target();
+      auto it = ptr_to_idx.find(k);
+      if (it == ptr_to_idx.end()) {
+        ptr_to_idx.insert(std::make_pair(k, idx));
+      } else {
+        (*it).second = idx;
+      }
+    }  
   }
 };
 
