@@ -203,10 +203,12 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
     if (USE_KINETIC_HEAP) {
       auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
       auto weak_ptr = weak_intrusive_ptr<AliasPool>(p);
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
-      }
+      time_t pre0 = std::chrono::system_clock::now();
       kh.push(std::move(weak_ptr), new_aff);
+      time_t post0 = std::chrono::system_clock::now();
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << "push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << " " << (post0 - pre0).count() << std::endl;
+      }
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
     }
