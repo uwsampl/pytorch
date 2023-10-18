@@ -267,7 +267,7 @@ public:
     self_t& h;
 
     void operator()(const Young& y, const size_t& idx) {
-      auto res = h.ptrToIdx.insert(std::make_pair(GetRepresentative()(n.t), std::make_pair(true, idx)));
+      auto res = h.ptrToIdx.insert(std::make_pair(GetRepresentative()(y.t), std::make_pair(true, idx)));
       if (!res.second) {
         (*(res.first)).second = std::make_pair(true, idx);
       }
