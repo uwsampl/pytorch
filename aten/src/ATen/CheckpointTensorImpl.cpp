@@ -544,21 +544,12 @@ void AliasPool::evict() {
       cell->evict();
     }
   }
-  // if (USE_KINETIC_HEAP) {
-  //   auto it = ptr_to_idx.find((int64_t) this);
-  //   if (it != ptr_to_idx.end()) {
-  //     auto idx = (*it).second;
-  //     if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
-  //       time_t pre5 = std::chrono::system_clock::now();
-  //       pool.kh.remove(idx);
-  //       time_t post5 = std::chrono::system_clock::now();
-  //       if (KH_LOG_PROFILE) {
-  //         LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
-  //       }
-  //     }
-  //     ptr_to_idx.erase(it);
-  //   }
-  // }
+  if (USE_KINETIC_HEAP) {
+    auto res = pool.kh.get_stable_idx((uint64_t) this);
+    if (res.has_value()) {
+      pool.kh.remove(res.value());
+    }
+  }
 }
 
 double AliasPool::cost(time_t current_time) {
@@ -600,21 +591,12 @@ void AliasPool::release_external() {
 }
 
 void AliasPool::release_resources() {
-  // if (USE_KINETIC_HEAP) {
-  //   auto it = ptr_to_idx.find((int64_t) this);
-  //   if (it != ptr_to_idx.end()) {
-  //     auto idx = (*it).second;
-  //     if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
-  //       time_t pre5 = std::chrono::system_clock::now();
-  //       pool.kh.remove(idx);
-  //       time_t post5 = std::chrono::system_clock::now();
-  //       if (KH_LOG_PROFILE) {
-  //         LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
-  //       }
-  //     }
-  //     ptr_to_idx.erase(it);
-  //   }
-  // }
+  if (USE_KINETIC_HEAP) {
+    auto res = pool.kh.get_stable_idx((uint64_t) this);
+    if (res.has_value()) {
+      pool.kh.remove(res.value());
+    }
+  }
   tensors.clear();
   neighbors.clear();
   head_remat.reset();

@@ -136,12 +136,31 @@ public:
   }
 
   c10::optional<std::pair<bool, size_t>> get_stable_idx(const T& k) {
+    get_stable_idx(GetRepresentative()(k));
+  }
+
+  c10::optional<std::pair<bool, size_t>> get_stable_idx(const uint64_t& k) {
     auto it = ptrToIdx.find(k);
     if (it != ptrToIdx.end()) {
       return c10::optional<std::pair<bool, size_t>>((*it).second);
     } else {
       return c10::optional<std::pair<bool, size_t>>();
     }
+  }
+
+  void remove(const std::pair<bool, size_t>& idx) {
+    if (idx.first) {
+      nursery.remove(idx.second);
+    } else {
+      heap.remove(idx.second);
+    }
+  }
+
+  void clear() {
+    heap.clear();
+    cert_queue.clear();
+    nursery.clear();
+    ptrToIdx.clear();
   }
 
   KineticMinHeap(int64_t time) :
@@ -385,13 +404,6 @@ private:
         }
       }
     }
-  }
-
-  void clear() {
-    heap.clear();
-    cert_queue.clear();
-    nursery.clear();
-    ptrToIdx.clear();
   }
 
   void promote() {
