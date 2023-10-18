@@ -236,9 +236,8 @@ struct NotifyHeapIndexChanged
     if (!KH_DISABLE_EAGER_SYNC) {
       auto k = (int64_t)ap._unsafe_get_target();
       auto p = ptr_to_idx.insert(std::make_pair(k, idx));
-      auto it = ptr_to_idx.find(k);
-      if (!it.second) {
-        (*(it.first)).second = idx;
+      if (!p.second) {
+        (*(p.first)).second = idx;
       }
     }  
   }
