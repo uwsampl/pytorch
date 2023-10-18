@@ -144,6 +144,10 @@ struct MinNormalHeap : MinHeapCRTP<T, MinNormalHeap<T, Compare, NHIC, NHER>> {
     return arr.size();
   }
 
+  void clear() {
+    arr.clear();
+  }
+
   void push(const T& t) {
     arr.push_back(t);
     this->flow(arr.size() - 1, true);
@@ -219,6 +223,10 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
 
   size_t size() const {
     return size_;
+  }
+
+  void clear() {
+    arr.clear();
   }
 
   bool empty() const {

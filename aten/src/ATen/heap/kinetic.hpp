@@ -278,7 +278,7 @@ public:
     self_t& h;
 
     void operator()(const Young& y) {
-      h.ptrToIdx.remove(GetRepresentative()(n.t));
+      h.ptrToIdx.erase(GetRepresentative()(y.t));
     }
   };
 

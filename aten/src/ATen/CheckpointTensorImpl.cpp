@@ -438,7 +438,7 @@ void clear_checkpointpool() {
   pool.kh.clear();
   time_t post4 = std::chrono::system_clock::now();
   if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << "clear " << current << " " << (post4 - pre4).count() << std::endl;
+    LOG_PROFILER.log_file << "clear " << (post4 - pre4).count() << std::endl;
   }
 }
 
