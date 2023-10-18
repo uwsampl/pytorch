@@ -86,7 +86,7 @@ struct AffFunction {
       return c10::optional<shift_t>(val);
     };
     if (slope <= 0) {
-      return c10::optional<shift_t>();
+      return c10::optional<aff_t>();
     } else {
       assert(slope > 0);
       return postcondition_check(-x_shift + div_ceiling(rhs + 1, slope));
@@ -164,7 +164,7 @@ struct AffFunction {
 
 inline std::ostream &operator<<(std::ostream &out, int128_t val) {
   assert(val <= std::numeric_limits<int64_t>::max());
-  return out << static_cast<uint64_t>(val);
+  return out << static_cast<int64_t>(val);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const AffFunction& f) {

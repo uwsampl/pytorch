@@ -144,10 +144,6 @@ struct MinNormalHeap : MinHeapCRTP<T, MinNormalHeap<T, Compare, NHIC, NHER>> {
     return arr.size();
   }
 
-  void clear() {
-    arr.clear();
-  }
-
   void push(const T& t) {
     arr.push_back(t);
     this->flow(arr.size() - 1, true);
@@ -229,14 +225,9 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
     return size() == 0;
   }
 
-  void clear() {
-    arr.clear();
-    size_ = 0;
-  }
-
   void hang(T&& t, const size_t& idx) {
     if (!(idx < arr.size())) {
-      arr.resize(std::max(idx * 2 + 1, arr.size() * 2));
+      arr.resize(idx * 2 + 1);
     }
     if (arr[idx].has_value()) {
       // TODO: huh, is 'prioritizing an empty child' a worthwhile optimization?

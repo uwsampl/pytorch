@@ -11,8 +11,13 @@
 #include <unordered_set>
 #include <functional>
 
+template<typename T>
+struct NotifyKineticHeapIndexChanged; //{
+//  void operator()(const T&, const size_t&);
+//};
 
 namespace HeapImpls {
+
 // Note: if this become a bottleneck,
 //   read the thesis and <Faster Kinetic Heaps and Their Use in Broadcast Scheduling> more carefully.
 
@@ -28,35 +33,38 @@ namespace HeapImpls {
 //   I am not sure if KineticHeater have this problem or not.
 // TODO: implement kinetic heater
 // TODO: implement kinetic tournament
-template<typename T, bool hanger, typename NotifyIndexChanged>
+template<typename T, bool hanger, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>>
 struct KineticMinHeap {
 public:
   size_t size() const {
-    return heap.size();
+    return heap.size() + nursery.size();
   }
 
   bool empty() const {
-    return heap.empty();
+    return heap.empty() && nursery.empty();
   }
 
   void push(const T& t, const AffFunction& f) {
-    heap.push(Node{t, f});
-    recert();
-    invariant();
+    T t_(t);
+    push(std::move(t_), f);
   }
 
   void push(T&& t, const AffFunction& f) {
-    heap.push(Node{std::forward<T>(t), f});
-    recert();
-    invariant();
+    if ((!heap.empty()) && f(time()) >= threshold && f.slope < 0) {
+      nursery.push(Young(std::move(t), f, threshold));
+    } else {
+      heap.push(Node{std::move(t), f});
+      recert();
+      invariant();
+    }
   }
 
   void insert(const T& t, const AffFunction &f) {
-      push(t, f);
+    push(t, f);
   }
 
   void insert(T&& t, const AffFunction &f) {
-      push(std::forward<T>(t), f);
+    push(std::forward<T>(t), f);
   }
 
   T& peek() {
@@ -74,9 +82,9 @@ public:
   }
 
   T remove(size_t i) {
-      T ret = heap.remove(i).t;
-      recert();
-      return ret;
+    T ret = heap.remove(i).t;
+    recert();
+    return ret;
   }
 
   T& operator[](size_t i) {
@@ -85,10 +93,6 @@ public:
 
   const T& operator[](size_t i) const {
     return heap[i].t;
-  }
-
-  bool has_value(size_t i) const {
-    return heap.has_value(i);
   }
 
   size_t min_idx() const {
@@ -112,26 +116,16 @@ public:
     return time_;
   }
 
-  void clear(int64_t time) {
-    heap.clear();
-    cert_queue.clear();
-    pending_recert.clear();
-    tmp.clear();
-    time_ = time;
-  }
-
   void advance_to(int64_t new_time) {
     assert(new_time >= time_);
     time_ = new_time;
-    while (!cert_queue.empty()) {
-      Certificate c = cert_queue.peek();
-      if (c.break_time <= time_) {
-        fix(c.heap_idx);
-        cert_queue.pop();
-      } else {
-        break;
-      }
+    while ((!cert_queue.empty()) && cert_queue.peek().break_time <= time()) {
+      Certificate c = cert_queue.pop();
+      fix(c.heap_idx);
     }
+    promote();
+    recert();
+    invariant();
   }
 
   KineticMinHeap(int64_t time) :
@@ -180,7 +174,7 @@ private:
 
 
   struct Certificate {
-    int64_t break_time;
+    shift_t break_time;
     // when we remove a node we remove it's certificate.
     // but when we remove a certificate we change the cert_idx in the node.
     // to avoid that looping back causing bad access, we will set this to -1 when so.
@@ -215,11 +209,63 @@ private:
   int64_t time_;
   std::unordered_set<size_t> pending_recert;
   std::unordered_set<size_t> tmp;
-
+public:
   MinHeap<Node, hanger, CompareNode, NodeIndexChanged, NodeElementRemoved> heap;
   // do not use hanger - hanger is only useful in kinetic setting.
   MinHeap<Certificate, false, CompareCertificate, CertificateIndexChanged, CertificateElementRemoved> cert_queue;
+  // this is a critical optimization:
+  // note that we only care about the top element of the kinetic heap,
+  // the rest of the heap is pointless beside maintaining the invariant.
+  // why do we spend lots of cpu maintaining the certificate between them then?
+  // we can keep track of 'when is a number becoming the smallest value', then pushing is only a small constant.
+  // but everytime the smallest value change there is a huge cost to remaintain the invariant.
+  // instead, we keep track of 'when is a number smaller then a threshold'?
+  // when that happends, only then we add the element to a normal kinetic heap.
+  // the threshold could be set to e.g. 2x the minimum value (note: value might be negative. in fact for the use case of zombie it is negative.)
+  // and when the threshold is smaller then the minimum value we have to reset it.
+  // note that this is suprsingly similar with generational garbage collection.
+  // it may be good to have multiple generation.
+  // note that we can demote a value from old gen to young gen... super weird.
 
+  struct Young {
+    T t;
+    AffFunction aff;
+    shift_t promote_time;
+    // todo: handle the case where ge_until return None
+    Young(T&& t, const AffFunction& aff, aff_t threshold) : t(std::move(t)), aff(aff), promote_time(aff.ge_until(threshold).value()) { }
+  };
+
+  struct CompareYoung {
+    bool operator()(const Young& l, const Young& r) {
+      return l.promote_time < r.promote_time;
+    }
+  };
+
+  struct YoungIndexChanged {
+    void operator()(const Young& y, const size_t& idx) { }
+  };
+
+  struct YoungElementRemoved {
+    void operator()(const Young& y) { }
+
+  };
+
+  MinHeap<Young, false, CompareYoung, YoungIndexChanged, YoungElementRemoved> nursery;
+
+  // when heap is empty threshold is invalid.
+  aff_t threshold;
+
+  template<typename I>
+  static I biggerMag(I num, double factor) {
+    return num > 0 ? num * factor : num / factor;
+  }
+
+  template<typename I>
+  static I smallerMag(I num, double factor) {
+    return num > 0 ? num / factor : num * factor;
+  }
+
+  constexpr static double threshold_factor = 4;
 
 private:
   void will_recert(const size_t& idx) {
@@ -256,7 +302,17 @@ private:
   }
 
   void invariant() {
+#ifdef ZOMBIE_KINETIC_VERIFY_INVARIANT
     cert_invariant();
+    if (!heap.empty()) {
+      aff_t current_value = heap.peek().f(time());
+      assert(current_value < threshold);
+      for (size_t i = 0; i < nursery.size(); ++i) {
+        assert(nursery[i].promote_time > time());
+        assert(nursery[i].aff(time()) > current_value);
+      }
+    }
+#endif
   }
 
   void recert(const size_t& idx) {
@@ -271,7 +327,7 @@ private:
         size_t pidx = heap_parent(idx);
         assert(heap.has_value(pidx));
         const Node& p = heap[pidx];
-        auto break_time = n.f.ge_until(p.f);
+        c10::optional<int64_t> break_time = n.f.ge_until(p.f);
         if (break_time && break_time.value() <= time_) {
           fix(idx);
         } else if (cert_idx != -1 && break_time) {
@@ -297,14 +353,51 @@ private:
     }
   }
 
+  void clear() {
+    heap.clear();
+    cert_queue.clear();
+    nursery.clear();
+  }
+
+  void promote() {
+    while ((!nursery.empty()) && nursery.peek().promote_time <= time()) {
+      Young yg = nursery.pop();
+      heap.push(Node{std::move(yg.t), yg.aff});
+      recert();
+    }
+  }
+
+  void reset_threshold(aff_t threshold) {
+    if (this->threshold != threshold) {
+      std::cout << "reset threshold!" << std::endl;
+      this->threshold = threshold;
+      nursery.remap([&](Young& y) { y.promote_time = y.aff.ge_until(threshold).value(); });
+      promote();
+    }
+  }
+
   void recert() {
     cert_invariant();
     while (!pending_recert.empty()) {
-      tmp.clear();
-      tmp.swap(pending_recert);
-      for (size_t idx: tmp) {
-        recert(idx);
-        cert_invariant();
+        tmp.clear();
+        tmp.swap(pending_recert);
+        for (size_t idx: tmp) {
+          recert(idx);
+          cert_invariant();
+      }
+    }
+    if (heap.empty()) {
+      if (!nursery.empty()) {
+        Young y = nursery.pop();
+        push(std::move(y.t), y.aff);
+      }
+    }
+    if (!heap.empty()) {
+      aff_t current_value = heap.peek().f(time());
+      if (heap.size() == 1 || // if it is nearly empty, try to get some value from the nursery
+          threshold < current_value || // the invariant is broken, have to reset it
+          threshold > biggerMag(current_value, threshold_factor * threshold_factor)) { // threshold too far, causing value to promote too early.
+        reset_threshold(biggerMag(current_value, threshold_factor));
       }
     }
   }

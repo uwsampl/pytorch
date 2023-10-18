@@ -15,7 +15,7 @@ enum class KineticHeapImpl {
 };
 
 
-template<KineticHeapImpl impl, typename T, typename NotifyIndexChanged>
+template<KineticHeapImpl impl, typename T, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>>
 using KineticHeap = c10::variant_alternative_t<
   (size_t)impl,
   c10::variant<
