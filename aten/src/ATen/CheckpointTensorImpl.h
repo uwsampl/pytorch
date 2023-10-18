@@ -425,7 +425,18 @@ struct CheckpointTensorImpl : TensorImpl {
   }
 };
 
-struct NotifyHeapIndexChanged;
+struct NotifyHeapIndexChanged
+{
+  void operator()(const weak_intrusive_ptr<AliasPool>& ap, size_t idx) {}
+};
+
+template<typename T>
+struct GetWeakIntrusivePtrRepresentative
+{
+  uint64_t operator()(const weak_intrusive_ptr<T>& wip) {
+    return (uint64_t)wip._unsafe_get_target();
+  }
+};
 
 extern bool USE_KINETIC_HEAP;
 extern int AFF_REENTRY_THRESHOLD;
@@ -435,7 +446,7 @@ int64_t since_epoch(time_t tp);
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
-  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged> kh;
+  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged, GetWeakIntrusivePtrRepresentative<AliasPool>> kh;
   std::vector<weak_intrusive_ptr<External>> exts;
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());

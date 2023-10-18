@@ -33,7 +33,7 @@ namespace HeapImpls {
 //   I am not sure if KineticHeater have this problem or not.
 // TODO: implement kinetic heater
 // TODO: implement kinetic tournament
-template<typename T, bool hanger, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>>
+template<typename T, bool hanger, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>, typename GetRepresentative>
 struct KineticMinHeap {
 public:
   size_t size() const {
@@ -128,10 +128,24 @@ public:
     invariant();
   }
 
+  bool has_value(size_t idx) {
+    return heap.has_value(idx);
+  }
+
+  c10::optional<std::pair<bool, size_t>> get_stable_idx(const T& k) {
+    auto it = ptrToIdx.find(k);
+    if (it != ptrToIdx.end()) {
+      return c10::optional<std::pair<bool, size_t>>((*it).second);
+    } else {
+      return c10::optional<std::pair<bool, size_t>>();
+    }
+  }
+
   KineticMinHeap(int64_t time) :
     time_(time),
     heap(CompareNode{*this}, NodeIndexChanged{*this}, NodeElementRemoved{*this}),
-    cert_queue(CompareCertificate(), CertificateIndexChanged{*this}, CertificateElementRemoved{*this}) { }
+    cert_queue(CompareCertificate(), CertificateIndexChanged{*this}, CertificateElementRemoved{*this}),
+    nursery(CompareYoung(), YoungIndexChanged{*this}, YoungElementRemoved{*this}) { }
 
 private:
   using self_t = KineticMinHeap<T, hanger, NotifyIndexChanged>;
@@ -157,6 +171,10 @@ private:
         h.cert_queue[n.cert_idx].heap_idx = idx;
       }
       h.will_recert(idx);
+      auto res = h.ptrToIdx.insert(std::make_pair(GetRepresentative()(n.t), std::make_pair(false, idx)));
+      if (!res.second) {
+        (*(res.first)).second = std::make_pair(false, idx);
+      }
       NotifyIndexChanged()(n.t, idx);
     }
   };
@@ -169,6 +187,7 @@ private:
         h.cert_queue[n.cert_idx].heap_idx = -1;
         h.cert_queue.remove(n.cert_idx);
       }
+      h.ptrToIdx.remove(GetRepresentative()(n.t));
     }
   };
 
@@ -242,12 +261,22 @@ public:
   };
 
   struct YoungIndexChanged {
-    void operator()(const Young& y, const size_t& idx) { }
+    self_t& h;
+
+    void operator()(const Young& y, const size_t& idx) {
+      auto res = h.ptrToIdx.insert(std::make_pair(GetRepresentative()(n.t), std::make_pair(true, idx)));
+      if (!res.second) {
+        (*(res.first)).second = std::make_pair(true, idx);
+      }
+    }
   };
 
   struct YoungElementRemoved {
-    void operator()(const Young& y) { }
+    self_t& h;
 
+    void operator()(const Young& y) {
+      h.ptrToIdx.remove(GetRepresentative()(n.t));
+    }
   };
 
   MinHeap<Young, false, CompareYoung, YoungIndexChanged, YoungElementRemoved> nursery;
@@ -266,6 +295,8 @@ public:
   }
 
   constexpr static double threshold_factor = 4;
+
+  std::unordered_map<uint64_t, std::pair<bool, size_t>> ptrToIdx;
 
 private:
   void will_recert(const size_t& idx) {
@@ -369,7 +400,7 @@ private:
 
   void reset_threshold(aff_t threshold) {
     if (this->threshold != threshold) {
-      std::cout << "reset threshold!" << std::endl;
+      //std::cout << "reset threshold!" << std::endl;
       this->threshold = threshold;
       nursery.remap([&](Young& y) { y.promote_time = y.aff.ge_until(threshold).value(); });
       promote();

@@ -194,8 +194,6 @@ double CheckpointInfo::cost(size_t memory, size_t staleness) const {
 
 CheckpointPool pool;
 
-std::unordered_map<int64_t, size_t> ptr_to_idx;
-
 CheckpointPool::CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {}
 
 void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
@@ -229,19 +227,6 @@ void CheckpointPool::auto_evict() {
     }
   }
 }
-
-struct NotifyHeapIndexChanged
-{
-  void operator()(weak_intrusive_ptr<AliasPool> ap, size_t idx) {
-    if (!KH_DISABLE_EAGER_SYNC) {
-      auto k = (int64_t)ap._unsafe_get_target();
-      auto p = ptr_to_idx.insert(std::make_pair(k, idx));
-      if (!p.second) {
-        (*(p.first)).second = idx;
-      }
-    }  
-  }
-};
 
 int64_t since_epoch(time_t tp)
 {
@@ -449,14 +434,12 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
-  auto current = since_epoch(std::chrono::system_clock::now());
   time_t pre4 = std::chrono::system_clock::now();
-  pool.kh.clear(current);
+  pool.kh.clear();
   time_t post4 = std::chrono::system_clock::now();
   if (KH_LOG_PROFILE) {
     LOG_PROFILER.log_file << "clear " << current << " " << (post4 - pre4).count() << std::endl;
   }
-  ptr_to_idx.clear();
 }
 
 void unset_memory_budget() {
@@ -561,21 +544,21 @@ void AliasPool::evict() {
       cell->evict();
     }
   }
-  if (USE_KINETIC_HEAP) {
-    auto it = ptr_to_idx.find((int64_t) this);
-    if (it != ptr_to_idx.end()) {
-      auto idx = (*it).second;
-      if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
-        time_t pre5 = std::chrono::system_clock::now();
-        pool.kh.remove(idx);
-        time_t post5 = std::chrono::system_clock::now();
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
-        }
-      }
-      ptr_to_idx.erase(it);
-    }
-  }
+  // if (USE_KINETIC_HEAP) {
+  //   auto it = ptr_to_idx.find((int64_t) this);
+  //   if (it != ptr_to_idx.end()) {
+  //     auto idx = (*it).second;
+  //     if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+  //       time_t pre5 = std::chrono::system_clock::now();
+  //       pool.kh.remove(idx);
+  //       time_t post5 = std::chrono::system_clock::now();
+  //       if (KH_LOG_PROFILE) {
+  //         LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
+  //       }
+  //     }
+  //     ptr_to_idx.erase(it);
+  //   }
+  // }
 }
 
 double AliasPool::cost(time_t current_time) {
@@ -617,21 +600,21 @@ void AliasPool::release_external() {
 }
 
 void AliasPool::release_resources() {
-  if (USE_KINETIC_HEAP) {
-    auto it = ptr_to_idx.find((int64_t) this);
-    if (it != ptr_to_idx.end()) {
-      auto idx = (*it).second;
-      if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
-        time_t pre5 = std::chrono::system_clock::now();
-        pool.kh.remove(idx);
-        time_t post5 = std::chrono::system_clock::now();
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
-        }
-      }
-      ptr_to_idx.erase(it);
-    }
-  }
+  // if (USE_KINETIC_HEAP) {
+  //   auto it = ptr_to_idx.find((int64_t) this);
+  //   if (it != ptr_to_idx.end()) {
+  //     auto idx = (*it).second;
+  //     if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
+  //       time_t pre5 = std::chrono::system_clock::now();
+  //       pool.kh.remove(idx);
+  //       time_t post5 = std::chrono::system_clock::now();
+  //       if (KH_LOG_PROFILE) {
+  //         LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
+  //       }
+  //     }
+  //     ptr_to_idx.erase(it);
+  //   }
+  // }
   tensors.clear();
   neighbors.clear();
   head_remat.reset();

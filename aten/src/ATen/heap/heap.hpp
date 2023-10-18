@@ -15,12 +15,12 @@ enum class KineticHeapImpl {
 };
 
 
-template<KineticHeapImpl impl, typename T, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>>
+template<KineticHeapImpl impl, typename T, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>, typename GetRepresentative>
 using KineticHeap = c10::variant_alternative_t<
   (size_t)impl,
   c10::variant<
     HeapImpls::Bag<T, NotifyIndexChanged>,
-    HeapImpls::KineticMinHeap<T, false, NotifyIndexChanged>,
-    HeapImpls::KineticMinHeap<T, true , NotifyIndexChanged>
+    HeapImpls::KineticMinHeap<T, false, NotifyIndexChanged, GetRepresentative>,
+    HeapImpls::KineticMinHeap<T, true , NotifyIndexChanged, GetRepresentative>
   >
 >;
