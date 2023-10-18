@@ -148,7 +148,7 @@ public:
     nursery(CompareYoung(), YoungIndexChanged{*this}, YoungElementRemoved{*this}) { }
 
 private:
-  using self_t = KineticMinHeap<T, hanger, NotifyIndexChanged>;
+  using self_t = KineticMinHeap<T, hanger, NotifyIndexChanged, GetRepresentative>;
 
   struct Node {
     T t;
