@@ -16,6 +16,9 @@ struct NotifyKineticHeapIndexChanged; //{
 //  void operator()(const T&, const size_t&);
 //};
 
+template<typename T>
+struct GetTRepresentative;
+
 namespace HeapImpls {
 
 // Note: if this become a bottleneck,
@@ -33,7 +36,7 @@ namespace HeapImpls {
 //   I am not sure if KineticHeater have this problem or not.
 // TODO: implement kinetic heater
 // TODO: implement kinetic tournament
-template<typename T, bool hanger, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>, typename GetRepresentative>
+template<typename T, bool hanger, typename NotifyIndexChanged=NotifyKineticHeapIndexChanged<T>, typename GetRepresentative=GetTRepresentative<T>>
 struct KineticMinHeap {
 public:
   size_t size() const {
@@ -187,7 +190,7 @@ private:
         h.cert_queue[n.cert_idx].heap_idx = -1;
         h.cert_queue.remove(n.cert_idx);
       }
-      h.ptrToIdx.remove(GetRepresentative()(n.t));
+      h.ptrToIdx.erase(GetRepresentative()(n.t));
     }
   };
 
@@ -388,6 +391,7 @@ private:
     heap.clear();
     cert_queue.clear();
     nursery.clear();
+    ptrToIdx.clear();
   }
 
   void promote() {
