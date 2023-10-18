@@ -257,26 +257,29 @@ void CheckpointPool::evict_kh()
   time_t current_time = std::chrono::system_clock::now();
   kh.advance_to(since_epoch(current_time));
   if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << "advance " << since_epoch(current_time) << std::endl;
+    time_t post1 = std::chrono::system_clock::now();
+    LOG_PROFILER.log_file << "advance " << since_epoch(current_time) << " " << (post1 - current_time).count() << std::endl;
   }
   
   while (!kh.empty())
   {
+    time_t pre2 = std::chrono::system_clock::now();
     auto aff = kh.get_aff(0);
     auto ap = kh.pop();
+    time_t post2 = std::chrono::system_clock::now();
 
     auto ap_strong = ap.lock();
 
     if (!ap_strong.defined()) {
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "popae1 " << (int64_t)ap._unsafe_get_target() << std::endl;
+        LOG_PROFILER.log_file << "popae1 " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
       }
       continue;
     }
 
     if (ap_strong->ecn) {
       if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "popae2 " << (int64_t)ap._unsafe_get_target() << std::endl;
+        LOG_PROFILER.log_file << "popae2 " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
       }
       continue;
     }
@@ -285,24 +288,28 @@ void CheckpointPool::evict_kh()
       auto real_cost = (__int128)(-1.0 / ap_strong->cost(current_time));
       auto aff_cost = aff(since_epoch(current_time));
 
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << "pope " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
+      }
+
       if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
       {
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
+        time_t pre3 = std::chrono::system_clock::now();
         kh.push(ap, new_aff);
+        time_t post3 = std::chrono::system_clock::now();
         if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << std::endl;
+          LOG_PROFILER.log_file << "repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << " " << (post3 - pre3).count() << std::endl;
         }
         continue;
       }
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "pope " << (int64_t)ap._unsafe_get_target() << std::endl;
-      }
+
       ap_strong->evict();
       break;
     }
 
     if (KH_LOG_PROFILE) {
-      LOG_PROFILER.log_file << "popue " << (int64_t)ap._unsafe_get_target() << std::endl;
+      LOG_PROFILER.log_file << "popue " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
     }
   }
 
@@ -443,10 +450,12 @@ void clear_checkpointpool() {
     pool.exts.pop_back();
   }
   auto current = since_epoch(std::chrono::system_clock::now());
-  if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << "clear " << current << std::endl;
-  }
+  time_t pre4 = std::chrono::system_clock::now();
   pool.kh.clear(current);
+  time_t post4 = std::chrono::system_clock::now();
+  if (KH_LOG_PROFILE) {
+    LOG_PROFILER.log_file << "clear " << current << " " << (post4 - pre4).count() << std::endl;
+  }
   ptr_to_idx.clear();
 }
 
@@ -557,10 +566,12 @@ void AliasPool::evict() {
     if (it != ptr_to_idx.end()) {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << std::endl;
-        }
+        time_t pre5 = std::chrono::system_clock::now();
         pool.kh.remove(idx);
+        time_t post5 = std::chrono::system_clock::now();
+        if (KH_LOG_PROFILE) {
+          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
+        }
       }
       ptr_to_idx.erase(it);
     }
@@ -611,10 +622,12 @@ void AliasPool::release_resources() {
     if (it != ptr_to_idx.end()) {
       auto idx = (*it).second;
       if (pool.kh.has_value(idx) && (int64_t)pool.kh[idx]._unsafe_get_target() == (int64_t) this) {
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << std::endl;
-        }
+        time_t pre5 = std::chrono::system_clock::now();
         pool.kh.remove(idx);
+        time_t post5 = std::chrono::system_clock::now();
+        if (KH_LOG_PROFILE) {
+          LOG_PROFILER.log_file << "remove " << idx << " " << (int64_t) this << " " << (post5 - pre5).count() << std::endl;
+        }
       }
       ptr_to_idx.erase(it);
     }
