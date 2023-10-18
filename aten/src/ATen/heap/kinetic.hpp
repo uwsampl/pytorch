@@ -136,7 +136,7 @@ public:
   }
 
   c10::optional<std::pair<bool, size_t>> get_stable_idx(const T& k) {
-    get_stable_idx(GetRepresentative()(k));
+    return get_stable_idx(GetRepresentative()(k));
   }
 
   c10::optional<std::pair<bool, size_t>> get_stable_idx(const uint64_t& k) {
