@@ -235,7 +235,7 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
 
   void hang(T&& t, const size_t& idx) {
     if (!(idx < arr.size())) {
-      arr.resize(idx * 2 + 1);
+      arr.resize(std::max(idx * 2 + 1, 2 * arr.size()));
     }
     if (arr[idx].has_value()) {
       // TODO: huh, is 'prioritizing an empty child' a worthwhile optimization?
