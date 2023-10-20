@@ -426,7 +426,7 @@ private:
   void recert() {
     cert_invariant();
     while (!pending_recert.empty()) {
-        tmp.clear();
+        tmp = std::unordered_set<size_t>();
         tmp.swap(pending_recert);
         for (size_t idx: tmp) {
           recert(idx);
