@@ -544,10 +544,13 @@ void AliasPool::evict() {
       cell->evict();
     }
   }
-  if (USE_KINETIC_HEAP) {
+  if (USE_KINETIC_HEAP && !KH_DISABLE_EAGER_SYNC) {
     auto res = pool.kh.get_stable_idx((uint64_t) this);
     if (res.has_value()) {
       pool.kh.remove(res.value());
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << "remove " << res.value().first << " " << res.value().second << std::endl;
+      }
     }
   }
 }
@@ -591,10 +594,13 @@ void AliasPool::release_external() {
 }
 
 void AliasPool::release_resources() {
-  if (USE_KINETIC_HEAP) {
+  if (USE_KINETIC_HEAP && !KH_DISABLE_EAGER_SYNC) {
     auto res = pool.kh.get_stable_idx((uint64_t) this);
     if (res.has_value()) {
       pool.kh.remove(res.value());
+      if (KH_LOG_PROFILE) {
+        LOG_PROFILER.log_file << "remove " << res.value().first << " " << res.value().second << std::endl;
+      }
     }
   }
   tensors.clear();
