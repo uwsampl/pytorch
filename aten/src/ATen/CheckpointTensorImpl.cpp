@@ -13,9 +13,21 @@ namespace at {
 
 bool USE_KINETIC_HEAP = true;
 int AFF_REENTRY_THRESHOLD = 2;
-bool KH_LOG_PROFILE = true;
+bool KH_LOG_PROFILE = false;
 double MEMORY_COEFF = 65535.0;
 bool KH_DISABLE_EAGER_SYNC = false;
+
+void toggle_kinetic_heap(bool enabled) {
+  USE_KINETIC_HEAP = enabled;
+}
+
+void toggle_kinetic_heap_profile(bool enabled) {
+  KH_LOG_PROFILE = enabled;
+}
+
+void toggle_kinetic_heap_eager_eviction_sync(bool enabled) {
+  KH_DISABLE_EAGER_SYNC = enabled;
+}
 
 using Clock = std::chrono::high_resolution_clock;
 using Time = Clock::time_point;

@@ -51,6 +51,15 @@
 - func: toggle_sampling(bool sample) -> ()
   variants: function
 
+- func: toggle_kinetic_heap(bool enabled) -> ()
+  variants: function
+
+- func: toggle_kinetic_heap_profile(bool enabled) -> ()
+  variants: function
+
+- func: toggle_kinetic_heap_eager_eviction_sync(bool enabled) -> ()
+  variants: function
+
 - func: toggle_ignore_small_tensors(bool ignore) -> ()
   variants: function
 
