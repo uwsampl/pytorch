@@ -210,8 +210,8 @@ struct MinHanger : MinHeapCRTP<T, MinHanger<T, Compare, NHIC, NHER>> {
   std::minstd_rand rd;
 
   bool coin() {
-    std::uniform_int_distribution<> distrib(0, 1000);
-    return distrib(rd) < 618;
+    std::uniform_int_distribution<> distrib(0, 1);
+    return distrib(rd) == 0;
   }
 
   std::vector<c10::optional<T>> arr;
