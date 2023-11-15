@@ -235,7 +235,8 @@ void CheckpointPool::evict_gds()
   
   while (!gds.empty())
   {
-    auto ap = gds.top();
+    auto ap = gds.top().second;
+    auto original_cost = gds.top().first + gds.L;
     auto ap_strong = ap.lock();
     gds.pop();
 
@@ -244,6 +245,11 @@ void CheckpointPool::evict_gds()
     }
 
     if (ap_strong->evictable()) {
+      auto new_cost = ap_strong->cost_gds();
+      if (new_cost > original_cost * AFF_REENTRY_THRESHOLD) {
+        gds.push(new_cost, ap);
+        continue;
+      }
       ap_strong->evict();
       break;
     }
@@ -257,6 +263,8 @@ void CheckpointPool::evict() {
   if (USE_KINETIC_HEAP)
   {
     return evict_kh();
+  } else if (USE_GDS) {
+    return evict_gds();
   }
   time_t pre = std::chrono::system_clock::now();
   STATS.track("CheckpointPool::evict");
