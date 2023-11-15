@@ -54,10 +54,10 @@
 - func: toggle_kinetic_heap(bool enabled) -> ()
   variants: function
 
-- func: toggle_kinetic_heap_profile(bool enabled) -> ()
+- func: toggle_kinetic_heap_eager_eviction_sync(bool enabled) -> ()
   variants: function
 
-- func: toggle_kinetic_heap_eager_eviction_sync(bool enabled) -> ()
+- func: toggle_gds(bool enabled) -> ()
   variants: function
 
 - func: toggle_ignore_small_tensors(bool ignore) -> ()

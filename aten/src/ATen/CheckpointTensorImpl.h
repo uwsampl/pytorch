@@ -23,6 +23,7 @@
 #include <ATen/ATen.h>
 
 #include <ATen/heap/heap.hpp>
+#include <ATen/heap/gds_heap.hpp>
 
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
@@ -256,6 +257,7 @@ struct AliasPool : intrusive_ptr_target {
   double cost(time_t current_time);
   __int128 cost_slope();
   int64_t cost_x_offset();
+  double cost_gds();
   void evict();
   void register_external() {
     ++external_count;
@@ -446,6 +448,7 @@ int64_t since_epoch(time_t tp);
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
+  GdsHeap<weak_intrusive_ptr<AliasPool>> gds;
   KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged, GetWeakIntrusivePtrRepresentative<AliasPool>> kh;
   std::vector<weak_intrusive_ptr<External>> exts;
   std::random_device rd;
@@ -457,6 +460,7 @@ struct CheckpointPool {
   bool has_memory_budget = false;
   long memory_budget;
   void evict();
+  void evict_gds();
   void evict_kh();
   void auto_evict();
   void clear_checkpointpool();

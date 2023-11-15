@@ -11,9 +11,9 @@
 
 namespace at {
 
-bool USE_KINETIC_HEAP = true;
+bool USE_KINETIC_HEAP = false;
+bool USE_GDS = false;
 int AFF_REENTRY_THRESHOLD = 2;
-bool KH_LOG_PROFILE = false;
 double MEMORY_COEFF = 65535.0;
 bool KH_DISABLE_EAGER_SYNC = false;
 
@@ -21,50 +21,6 @@ using Clock = std::chrono::high_resolution_clock;
 using Time = Clock::time_point;
 using Duration = Clock::duration;
 using FinalTime = std::chrono::nanoseconds;
-
-struct LogProfiler {
-  std::fstream log_file;
-
-  LogProfiler() {
-    if (KH_LOG_PROFILE) {
-      std::string bs = "/home/marisa/zblogs/";
-      int i = 0;
-      for (; i < 100; ++i) {
-        std::ifstream check(bs + std::to_string(i) + ".log");
-        if (!check.good()) {
-          break;
-        }
-      }
-      log_file = std::fstream(bs + std::to_string(i) + ".log", std::ios::out);
-    }
-  }
-};
-
-std::ostream&
-operator<<( std::ostream& dest, __int128_t value )
-{
-    std::ostream::sentry s( dest );
-    if ( s ) {
-        __uint128_t tmp = value < 0 ? -value : value;
-        char buffer[ 128 ];
-        char* d = std::end( buffer );
-        do
-        {
-            -- d;
-            *d = "0123456789"[ tmp % 10 ];
-            tmp /= 10;
-        } while ( tmp != 0 );
-        if ( value < 0 ) {
-            -- d;
-            *d = '-';
-        }
-        int len = std::end( buffer ) - d;
-        if ( dest.rdbuf()->sputn( d, len ) != len ) {
-            dest.setstate( std::ios_base::badbit );
-        }
-    }
-    return dest;
-}
 
 struct PerfStats;
 
@@ -148,7 +104,6 @@ struct PerfStats {
 };
 
 static PerfStats STATS = PerfStats();
-static LogProfiler LOG_PROFILER = LogProfiler();
 
 size_t memory_sum = 0;
 size_t memory_max = 0;
@@ -204,9 +159,8 @@ void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
       time_t pre0 = std::chrono::system_clock::now();
       kh.push(std::move(weak_ptr), new_aff);
       time_t post0 = std::chrono::system_clock::now();
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "push " << (int64_t)weak_ptr._unsafe_get_target() << " " << new_aff.slope << " " << new_aff.x_shift << " " << (post0 - pre0).count() << std::endl;
-      }
+    } else if (USE_GDS) {
+      gds.push(p->cost_gds(), weak_intrusive_ptr<AliasPool>(p));
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
     }
@@ -241,31 +195,15 @@ void CheckpointPool::evict_kh()
 
   time_t current_time = std::chrono::system_clock::now();
   kh.advance_to(since_epoch(current_time));
-  if (KH_LOG_PROFILE) {
-    time_t post1 = std::chrono::system_clock::now();
-    LOG_PROFILER.log_file << "advance " << since_epoch(current_time) << " " << (post1 - current_time).count() << std::endl;
-  }
   
   while (!kh.empty())
   {
-    time_t pre2 = std::chrono::system_clock::now();
     auto aff = kh.get_aff(0);
     auto ap = kh.pop();
-    time_t post2 = std::chrono::system_clock::now();
 
     auto ap_strong = ap.lock();
 
-    if (!ap_strong.defined()) {
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "popae1 " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
-      }
-      continue;
-    }
-
-    if (ap_strong->ecn) {
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "popae2 " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
-      }
+    if (!ap_strong.defined() || ap_strong->ecn) {
       continue;
     }
 
@@ -273,28 +211,41 @@ void CheckpointPool::evict_kh()
       auto real_cost = (__int128)(-1.0 / ap_strong->cost(current_time));
       auto aff_cost = aff(since_epoch(current_time));
 
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "pope " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
-      }
-
       if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
       {
         auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
-        time_t pre3 = std::chrono::system_clock::now();
         kh.push(ap, new_aff);
-        time_t post3 = std::chrono::system_clock::now();
-        if (KH_LOG_PROFILE) {
-          LOG_PROFILER.log_file << "repush " << (int64_t)ap_strong.get() << " " << new_aff.slope << " " << new_aff.x_shift << " " << (post3 - pre3).count() << std::endl;
-        }
         continue;
       }
 
       ap_strong->evict();
       break;
     }
+  }
 
-    if (KH_LOG_PROFILE) {
-      LOG_PROFILER.log_file << "popue " << (int64_t)ap._unsafe_get_target() << " " << (post2 - pre2).count() << std::endl;
+  time_t post = std::chrono::system_clock::now();
+  search_time_ += (post - pre).count();
+}
+
+void CheckpointPool::evict_gds()
+{
+  time_t pre = std::chrono::system_clock::now();
+  STATS.track("CheckpointPool::evict_gds");
+  TORCH_CHECK(kh.size() > 0);
+  
+  while (!gds.empty())
+  {
+    auto ap = gds.top();
+    auto ap_strong = ap.lock();
+    gds.pop();
+
+    if (!ap_strong.defined() || ap_strong->ecn) {
+      continue;
+    }
+
+    if (ap_strong->evictable()) {
+      ap_strong->evict();
+      break;
     }
   }
 
@@ -434,12 +385,7 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
-  time_t pre4 = std::chrono::system_clock::now();
   pool.kh.clear();
-  time_t post4 = std::chrono::system_clock::now();
-  if (KH_LOG_PROFILE) {
-    LOG_PROFILER.log_file << "clear " << (post4 - pre4).count() << std::endl;
-  }
 }
 
 void unset_memory_budget() {
@@ -463,12 +409,12 @@ void toggle_kinetic_heap(bool enabled) {
   USE_KINETIC_HEAP = enabled;
 }
 
-void toggle_kinetic_heap_profile(bool enabled) {
-  KH_LOG_PROFILE = enabled;
-}
-
 void toggle_kinetic_heap_eager_eviction_sync(bool enabled) {
   KH_DISABLE_EAGER_SYNC = enabled;
+}
+
+void toggle_gds(bool enabled) {
+  USE_GDS = enabled;
 }
 
 void reset_profile() {
@@ -560,9 +506,6 @@ void AliasPool::evict() {
     auto res = pool.kh.get_stable_idx((uint64_t) this);
     if (res.has_value()) {
       pool.kh.remove(res.value());
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "remove " << res.value().first << " " << res.value().second << std::endl;
-      }
     }
   }
 }
@@ -580,13 +523,29 @@ double AliasPool::cost(time_t current_time) {
   return ret;
 }
 
+double AliasPool::cost_gds() {
+  time_t pre = std::chrono::system_clock::now();
+  auto cpi = head_remat->get_cpi();
+  auto ecns = neighbor_ecn();
+  for (const auto& necn : ecns) {
+    cpi = merge_cpi(cpi, get_t(necn));
+  }
+  auto ret = (double)(cpi.compute_cost.count()) / memory; 
+  time_t post = std::chrono::system_clock::now();
+  cost_time_ += (post - pre).count();
+  return ret;
+}
+
 __int128 AliasPool::cost_slope() {
+  time_t pre = std::chrono::system_clock::now();
   auto cpi = head_remat->get_cpi();
   auto ecns = neighbor_ecn();
   for (const auto& necn : ecns) {
     cpi = merge_cpi(cpi, get_t(necn));
   }
   auto ret = -(memory * MEMORY_COEFF) / cpi.compute_cost.count();
+  time_t post = std::chrono::system_clock::now();
+  cost_time_ += (post - pre).count();
   return (__int128) ret;
 }
 
@@ -610,9 +569,6 @@ void AliasPool::release_resources() {
     auto res = pool.kh.get_stable_idx((uint64_t) this);
     if (res.has_value()) {
       pool.kh.remove(res.value());
-      if (KH_LOG_PROFILE) {
-        LOG_PROFILER.log_file << "remove " << res.value().first << " " << res.value().second << std::endl;
-      }
     }
   }
   tensors.clear();
