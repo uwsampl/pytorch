@@ -229,6 +229,7 @@ void CheckpointPool::evict_kh()
 
 void CheckpointPool::evict_gds()
 {
+  std::cout << "+ evict_gds" << std::endl;
   time_t pre = std::chrono::system_clock::now();
   STATS.track("CheckpointPool::evict_gds");
   TORCH_CHECK(kh.size() > 0);
@@ -257,6 +258,7 @@ void CheckpointPool::evict_gds()
 
   time_t post = std::chrono::system_clock::now();
   search_time_ += (post - pre).count();
+  std::cout << "- evict_gds" << std::endl;
 }
 
 void CheckpointPool::evict() {
