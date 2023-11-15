@@ -236,26 +236,34 @@ void CheckpointPool::evict_gds()
   
   while (!gds.empty())
   {
+    std::cout << "+1 evict_gds" << std::endl;
     auto ap = gds.top().second;
     auto original_cost = gds.top().first + gds.L;
     auto ap_strong = ap.lock();
+    std::cout << "+2 evict_gds" << std::endl;
     gds.pop();
-
+    std::cout << "+3 evict_gds" << std::endl;
     if (!ap_strong.defined() || ap_strong->ecn) {
       continue;
     }
-
+    std::cout << "+4 evict_gds" << std::endl;
     if (ap_strong->evictable()) {
+      std::cout << "+5 evict_gds" << std::endl;
       auto new_cost = ap_strong->cost_gds();
+      std::cout << "+6 evict_gds" << std::endl;
       if (new_cost > original_cost * AFF_REENTRY_THRESHOLD) {
+        std::cout << "+7 evict_gds" << std::endl;
         gds.push(new_cost, ap);
+        std::cout << "+8 evict_gds" << std::endl;
         continue;
       }
+      std::cout << "+9 evict_gds" << std::endl;
       ap_strong->evict();
+      std::cout << "+20 evict_gds" << std::endl;
       break;
     }
   }
-
+  std::cout << "+11 evict_gds" << std::endl;
   time_t post = std::chrono::system_clock::now();
   search_time_ += (post - pre).count();
   std::cout << "- evict_gds" << std::endl;
