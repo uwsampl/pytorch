@@ -232,7 +232,7 @@ void CheckpointPool::evict_gds()
   std::cout << "+ evict_gds" << std::endl;
   time_t pre = std::chrono::system_clock::now();
   STATS.track("CheckpointPool::evict_gds");
-  TORCH_CHECK(kh.size() > 0);
+  TORCH_CHECK(gds.size() > 0);
   
   while (!gds.empty())
   {
