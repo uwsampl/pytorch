@@ -235,18 +235,17 @@ void CheckpointPool::evict_gds()
   
   while (!gds.empty())
   {
-    auto ap = gds.top().second;
-    auto original_cost = gds.top().first;
-    auto ap_strong = ap.lock();
+    auto top = gds.top();
+    auto ap_strong = top.value.lock();
     gds.pop();
     if (!ap_strong.defined() || ap_strong->ecn) {
       continue;
     }
     if (ap_strong->evictable()) {
       auto new_cost = ap_strong->cost_gds();
-      if (new_cost > original_cost * AFF_REENTRY_THRESHOLD) {
-        gds.L -= original_cost;
-        gds.push(new_cost, ap);
+      if (new_cost > (top.cost + top.offset) * AFF_REENTRY_THRESHOLD) {
+        top.cost = new_cost;
+        gds.push_raw(top);
         continue;
       }
       ap_strong->evict();

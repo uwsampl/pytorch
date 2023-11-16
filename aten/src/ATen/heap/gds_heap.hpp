@@ -2,20 +2,27 @@
 
 #include <vector>
 #include <queue>
+#include <tuple>
 
 template<typename T>
-struct PairCompare
+struct Node {
+    double cost;
+    double offset;
+    T value;
+};
+
+template<typename T>
+struct NodeCompare
 {
-    bool operator()(const std::pair<double, T>& left, const std::pair<double, T>& right) const
+    bool operator()(const Node<T>& left, const Node<T>& right) const
     {
-        return left.first > right.first;
+        return (left.cost + left.offset) > (right.cost + right.offset);
     }
 };
 
 template <typename T>
 struct GdsHeap {
-    typedef std::pair<double, T> node_type;
-    std::priority_queue<node_type, std::vector<node_type>, PairCompare<T>> queue;
+    std::priority_queue<Node<T>, std::vector<Node<T>>, NodeCompare<T>> queue;
     double L = 0.0;
 
     bool empty() const {
@@ -27,15 +34,20 @@ struct GdsHeap {
     }
 
     void push(const double cost, const T& value) {
-        queue.push(std::make_pair(cost + L, value));
+        queue.push(std::make_tuple(cost, L, value));
     }
 
-    const node_type &top() const {
+    void push_raw(const Node &node) {
+        queue.push(node);
+    }
+
+    const Node &top() const {
         return queue.top();
     }
 
     void pop() {
-        L += top().first;
+        const auto &t = top();
+        L = t.cost + t.offset;
         queue.pop();
     }
 };
