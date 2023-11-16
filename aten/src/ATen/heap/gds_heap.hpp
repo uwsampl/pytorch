@@ -34,7 +34,7 @@ struct GdsHeap {
     }
 
     void push(const double cost, const T& value) {
-        queue.push(Node {cost, L, value});
+        queue.push(Node<T> {cost, L, value});
     }
 
     void push_raw(const Node<T> &node) {
