@@ -45,6 +45,10 @@ struct GdsHeap {
         return queue.top();
     }
 
+    void pop_raw() {
+        queue.pop();
+    }
+
     void pop() {
         const auto &t = top();
         L = t.cost + t.offset;

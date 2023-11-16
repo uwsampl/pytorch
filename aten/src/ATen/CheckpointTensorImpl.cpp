@@ -237,8 +237,9 @@ void CheckpointPool::evict_gds()
   {
     auto top = gds.top();
     auto ap_strong = top.value.lock();
-    gds.pop();
+    gds.pop_raw();
     if (!ap_strong.defined() || ap_strong->ecn) {
+      gds.L = top.cost + top.offset;
       continue;
     }
     if (ap_strong->evictable()) {
@@ -249,8 +250,10 @@ void CheckpointPool::evict_gds()
         continue;
       }
       ap_strong->evict();
+      gds.L = top.cost + top.offset;
       break;
     }
+    gds.L = top.cost + top.offset;
   }
   time_t post = std::chrono::system_clock::now();
   search_time_ += (post - pre).count();
