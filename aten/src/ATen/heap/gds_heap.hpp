@@ -8,7 +8,7 @@ struct PairCompare
 {
     bool operator()(const std::pair<double, T>& left, const std::pair<double, T>& right) const
     {
-        return left.first > right.first;
+        return left.first < right.first;
     }
 };
 
