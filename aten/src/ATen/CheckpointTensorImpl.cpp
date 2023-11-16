@@ -239,7 +239,7 @@ void CheckpointPool::evict_gds()
     std::cout << "+1 evict_gds" << std::endl;
     auto ap = gds.top().second;
     std::cout << "+1.1 evict_gds" << std::endl;
-    auto original_cost = gds.top().first + gds.L;
+    auto original_cost = gds.top().first;
     std::cout << "+1.2 evict_gds " << ap._unsafe_get_target() << std::endl;
     auto ap_strong = ap.lock();
     std::cout << "+2 evict_gds" << std::endl;

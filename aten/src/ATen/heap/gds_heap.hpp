@@ -30,8 +30,8 @@ struct GdsHeap {
         queue.push(std::make_pair(cost + L, value));
     }
 
-    std::pair<double, const T&> top() const {
-        return std::make_pair(queue.top().first - L, queue.top().second);
+    const node_type &top() const {
+        return queue.top();
     }
 
     void pop() {
