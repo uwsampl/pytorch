@@ -37,11 +37,11 @@ struct GdsHeap {
         queue.push(std::make_tuple(cost, L, value));
     }
 
-    void push_raw(const Node &node) {
+    void push_raw(const Node<T> &node) {
         queue.push(node);
     }
 
-    const Node &top() const {
+    const Node<T> &top() const {
         return queue.top();
     }
 
