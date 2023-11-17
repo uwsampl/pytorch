@@ -3,7 +3,6 @@
 #include <random>
 #include <c10/util/Optional.h>
 #include <cassert>
-#include "bheap.hpp"
 
 inline bool heap_is_root(size_t i) {
   return i == 0;
