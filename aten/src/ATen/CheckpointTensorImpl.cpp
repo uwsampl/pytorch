@@ -253,7 +253,7 @@ void CheckpointPool::evict_gds()
       gds.L = top.cost + top.offset;
       break;
     }
-    // gds.L = top.cost + top.offset;
+    gds.L = top.cost + top.offset;
   }
   time_t post = std::chrono::system_clock::now();
   search_time_ += (post - pre).count();
