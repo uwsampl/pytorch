@@ -6,8 +6,16 @@
 #include <string>
 #include <random>
 #include <cmath>
+#include <fstream>
+#include <unordered_map>
 
 namespace at {
+
+bool USE_KINETIC_HEAP = false;
+bool USE_GDS = false;
+int AFF_REENTRY_THRESHOLD = 2;
+double MEMORY_COEFF = 65535.0;
+bool KH_DISABLE_EAGER_SYNC = false;
 
 using Clock = std::chrono::high_resolution_clock;
 using Time = Clock::time_point;
@@ -133,11 +141,31 @@ long remat_compute_time_ = 0;
 long search_time_ = 0;
 long cost_time_ = 0;
 
+double CheckpointInfo::cost(size_t memory, size_t staleness) const {
+  TORCH_CHECK(memory > 0);
+  TORCH_CHECK(staleness > 0);
+  return compute_cost.count() / (memory * MEMORY_COEFF * staleness);
+}
+
 CheckpointPool pool;
+
+CheckpointPool::CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {}
+
 void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
+  time_t pre = std::chrono::system_clock::now();
   if (p->memory > 0 && (memory_count == 0 || !ignore_small_tensors || p->memory >= 0.01 * double(memory_sum/memory_count))) {
-    aps.push_back(weak_intrusive_ptr<AliasPool>(p));
+    if (USE_KINETIC_HEAP) {
+      auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
+      auto weak_ptr = weak_intrusive_ptr<AliasPool>(p);
+      kh.push(std::move(weak_ptr), new_aff);
+    } else if (USE_GDS) {
+      gds.push(p->cost_gds(), weak_intrusive_ptr<AliasPool>(p));
+    } else {
+      aps.push_back(weak_intrusive_ptr<AliasPool>(p));
+    }
   }
+  time_t post = std::chrono::system_clock::now();
+  search_time_ += (post - pre).count();
 }
 
 long current_memory() {
@@ -155,7 +183,90 @@ void CheckpointPool::auto_evict() {
   }
 }
 
+int64_t since_epoch(time_t tp)
+{
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(tp.time_since_epoch()).count();
+}
+
+void CheckpointPool::evict_kh()
+{
+  time_t pre = std::chrono::system_clock::now();
+  STATS.track("CheckpointPool::evict_kh");
+  TORCH_CHECK(kh.size() > 0);
+
+  time_t current_time = std::chrono::system_clock::now();
+  kh.advance_to(since_epoch(current_time));
+  
+  while (!kh.empty())
+  {
+    auto aff = kh.get_aff(0);
+    auto ap = kh.pop();
+
+    auto ap_strong = ap.lock();
+
+    if (!ap_strong.defined() || ap_strong->ecn) {
+      continue;
+    }
+
+    if (ap_strong->evictable()) {
+      auto real_cost = (__int128)(-1.0 / ap_strong->cost(current_time));
+      auto aff_cost = aff(since_epoch(current_time));
+
+      if (real_cost * AFF_REENTRY_THRESHOLD > aff_cost)
+      {
+        auto new_aff = AffFunction(ap_strong->cost_slope(), ap_strong->cost_x_offset());
+        kh.push(ap, new_aff);
+        continue;
+      }
+
+      ap_strong->evict();
+      break;
+    }
+  }
+
+  time_t post = std::chrono::system_clock::now();
+  search_time_ += (post - pre).count();
+}
+
+void CheckpointPool::evict_gds()
+{
+  time_t pre = std::chrono::system_clock::now();
+  STATS.track("CheckpointPool::evict_gds");
+  TORCH_CHECK(gds.size() > 0);
+  
+  while (!gds.empty())
+  {
+    auto top = gds.top();
+    auto ap_strong = top.value.lock();
+    gds.pop_raw();
+    if (!ap_strong.defined() || ap_strong->ecn) {
+      gds.L = top.cost + top.offset;
+      continue;
+    }
+    if (ap_strong->evictable()) {
+      auto new_cost = ap_strong->cost_gds();
+      if (new_cost > (top.cost + top.offset) * AFF_REENTRY_THRESHOLD) {
+        top.cost = new_cost;
+        gds.push_raw(top);
+        continue;
+      }
+      ap_strong->evict();
+      gds.L = top.cost + top.offset;
+      break;
+    }
+    gds.L = top.cost + top.offset;
+  }
+  time_t post = std::chrono::system_clock::now();
+  search_time_ += (post - pre).count();
+}
+
 void CheckpointPool::evict() {
+  if (USE_KINETIC_HEAP)
+  {
+    return evict_kh();
+  } else if (USE_GDS) {
+    return evict_gds();
+  }
   time_t pre = std::chrono::system_clock::now();
   STATS.track("CheckpointPool::evict");
   TORCH_CHECK(aps.size() > 0);
@@ -212,8 +323,6 @@ void CheckpointPool::evict() {
   time_t post = std::chrono::system_clock::now();
   search_time_ += (post - pre).count();
 }
-
-CheckpointPool::CheckpointPool() { }
 
 namespace native {
 
@@ -285,6 +394,7 @@ void clear_checkpointpool() {
     }
     pool.exts.pop_back();
   }
+  pool.kh.clear();
 }
 
 void unset_memory_budget() {
@@ -302,6 +412,18 @@ void toggle_sampling(bool sample) {
 
 void toggle_ignore_small_tensors(bool ignore) {
   pool.ignore_small_tensors = ignore;
+}
+
+void toggle_kinetic_heap(bool enabled) {
+  USE_KINETIC_HEAP = enabled;
+}
+
+void toggle_kinetic_heap_eager_eviction_sync(bool enabled) {
+  KH_DISABLE_EAGER_SYNC = enabled;
+}
+
+void toggle_gds(bool enabled) {
+  USE_GDS = enabled;
 }
 
 void reset_profile() {
@@ -389,6 +511,12 @@ void AliasPool::evict() {
       cell->evict();
     }
   }
+  if (USE_KINETIC_HEAP && !KH_DISABLE_EAGER_SYNC) {
+    auto res = pool.kh.get_stable_idx((uint64_t) this);
+    if (res.has_value()) {
+      pool.kh.remove(res.value());
+    }
+  }
 }
 
 double AliasPool::cost(time_t current_time) {
@@ -402,6 +530,59 @@ double AliasPool::cost(time_t current_time) {
   time_t post = std::chrono::system_clock::now();
   cost_time_ += (post - pre).count();
   return ret;
+}
+
+double AliasPool::cost_gds() {
+  time_t pre = std::chrono::system_clock::now();
+  auto cpi = head_remat->get_cpi();
+  auto ecns = neighbor_ecn();
+  for (const auto& necn : ecns) {
+    cpi = merge_cpi(cpi, get_t(necn));
+  }
+  auto ret = (double)(cpi.compute_cost.count()) / memory; 
+  time_t post = std::chrono::system_clock::now();
+  cost_time_ += (post - pre).count();
+  return ret;
+}
+
+__int128 AliasPool::cost_slope() {
+  time_t pre = std::chrono::system_clock::now();
+  auto cpi = head_remat->get_cpi();
+  auto ecns = neighbor_ecn();
+  for (const auto& necn : ecns) {
+    cpi = merge_cpi(cpi, get_t(necn));
+  }
+  auto ret = -(memory * MEMORY_COEFF) / cpi.compute_cost.count();
+  time_t post = std::chrono::system_clock::now();
+  cost_time_ += (post - pre).count();
+  return (__int128) ret;
+}
+
+int64_t AliasPool::cost_x_offset() {
+  return -since_epoch(last_used_time);
+}
+
+void AliasPool::release_external() {
+  --external_count;
+  if (external_count == 0) {
+    if (lock_count > 0) {return;}
+    TORCH_CHECK(lock_count == 0);
+    if (memory > 0 && (!ecn) && head_remat) {
+      evict();
+    }
+  }
+}
+
+void AliasPool::release_resources() {
+  if (USE_KINETIC_HEAP && !KH_DISABLE_EAGER_SYNC) {
+    auto res = pool.kh.get_stable_idx((uint64_t) this);
+    if (res.has_value()) {
+      pool.kh.remove(res.value());
+    }
+  }
+  tensors.clear();
+  neighbors.clear();
+  head_remat.reset();
 }
 
 void External::release_resources() {

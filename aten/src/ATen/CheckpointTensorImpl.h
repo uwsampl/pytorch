@@ -22,6 +22,9 @@
 #include <ATen/Tensor.h>
 #include <ATen/ATen.h>
 
+#include <ATen/heap/heap.hpp>
+#include <ATen/heap/gds_heap.hpp>
+
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 #define TORCH_CHECK(a, ...) // profile mode
@@ -156,16 +159,13 @@ using Tensors = std::vector<Tensor>;
 using rematerialize_function_t = std::function<Tensors(const Tensors&)>;
 using mutate_function_t = std::function<void(const Tensors&)>;
 
-using time_t = std::chrono::time_point<std::chrono::system_clock>;
-using duration_t = std::chrono::system_clock::duration;
+using duration_t = std::chrono::nanoseconds;
+using time_t = std::chrono::time_point<std::chrono::system_clock, duration_t>;
+
 struct CheckpointInfo {
   duration_t compute_cost;
   // @ZACH: Floating Point instability?
-  double cost(size_t memory, size_t staleness) const {
-    TORCH_CHECK(memory > 0);
-    TORCH_CHECK(staleness > 0);
-    return compute_cost.count() / static_cast<double>(memory * staleness);
-  }
+  double cost(size_t memory, size_t staleness) const;
   CheckpointInfo(duration_t compute_cost) :
     compute_cost(compute_cost) {
   }
@@ -255,29 +255,19 @@ struct AliasPool : intrusive_ptr_target {
   // if it is evicted, then hold the evicted tensor group.
   ecn_ptr ecn;
   double cost(time_t current_time);
+  __int128 cost_slope();
+  int64_t cost_x_offset();
+  double cost_gds();
   void evict();
   void register_external() {
     ++external_count;
   }
-  void release_external() {
-    --external_count;
-    if (external_count == 0) {
-      if (lock_count > 0) {return;}
-      TORCH_CHECK(lock_count == 0);
-      if (memory > 0 && (!ecn) && head_remat) {
-        evict();
-      }
-    }
-  }
+  void release_external();
   // if it was evicted, refresh it. otherwise do nothing.
   // have to check so, because when we rematerialize a single tensor in an aliaspool,
   // we will set it to non-evicted, and when we rematerialize it's tensor they will also reset this.
   void set_not_evicted(const intrusive_ptr<AliasPool>& self);
-  void release_resources() final {
-    tensors.clear();
-    neighbors.clear();
-    head_remat.reset();
-  }
+  void release_resources() final;
 };
 
 struct CheckpointTensorCell : intrusive_ptr_target {
@@ -437,9 +427,29 @@ struct CheckpointTensorImpl : TensorImpl {
   }
 };
 
+struct NotifyHeapIndexChanged
+{
+  void operator()(const weak_intrusive_ptr<AliasPool>& ap, size_t idx) {}
+};
+
+template<typename T>
+struct GetWeakIntrusivePtrRepresentative
+{
+  uint64_t operator()(const weak_intrusive_ptr<T>& wip) {
+    return (uint64_t)wip._unsafe_get_target();
+  }
+};
+
+extern bool USE_KINETIC_HEAP;
+extern int AFF_REENTRY_THRESHOLD;
+
+int64_t since_epoch(time_t tp);
+
 // CheckpointPool keep a list of AliasPool, and search over them to choose the best one to evict.
 struct CheckpointPool {
   std::vector<weak_intrusive_ptr<AliasPool>> aps;
+  GdsHeap<weak_intrusive_ptr<AliasPool>> gds;
+  KineticHeap<KineticHeapImpl::Hanger, weak_intrusive_ptr<AliasPool>, NotifyHeapIndexChanged, GetWeakIntrusivePtrRepresentative<AliasPool>> kh;
   std::vector<weak_intrusive_ptr<External>> exts;
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
@@ -450,6 +460,8 @@ struct CheckpointPool {
   bool has_memory_budget = false;
   long memory_budget;
   void evict();
+  void evict_gds();
+  void evict_kh();
   void auto_evict();
   void clear_checkpointpool();
   void add(const intrusive_ptr<AliasPool>&);
