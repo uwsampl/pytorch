@@ -152,19 +152,20 @@ CheckpointPool pool;
 CheckpointPool::CheckpointPool() : kh((since_epoch(std::chrono::system_clock::now()))) {}
 
 void CheckpointPool::add(const intrusive_ptr<AliasPool>& p) {
+  time_t pre = std::chrono::system_clock::now();
   if (p->memory > 0 && (memory_count == 0 || !ignore_small_tensors || p->memory >= 0.01 * double(memory_sum/memory_count))) {
     if (USE_KINETIC_HEAP) {
       auto new_aff = AffFunction(p->cost_slope(), p->cost_x_offset());
       auto weak_ptr = weak_intrusive_ptr<AliasPool>(p);
-      time_t pre0 = std::chrono::system_clock::now();
       kh.push(std::move(weak_ptr), new_aff);
-      time_t post0 = std::chrono::system_clock::now();
     } else if (USE_GDS) {
       gds.push(p->cost_gds(), weak_intrusive_ptr<AliasPool>(p));
     } else {
       aps.push_back(weak_intrusive_ptr<AliasPool>(p));
     }
   }
+  time_t post = std::chrono::system_clock::now();
+  search_time_ += (post - pre).count();
 }
 
 long current_memory() {
